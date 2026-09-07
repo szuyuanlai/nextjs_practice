@@ -3,7 +3,7 @@
 import Link from "next/link";
 import { useEffect, useState } from "react";
 import type { User } from "@supabase/supabase-js";
-import { Globe, LogOut, Sparkles, UserCircle2 } from "lucide-react";
+import { Globe, LogOut, Sparkles, UserCircle2, ClipboardList, UserRound } from "lucide-react";
 import { supabase } from "@/src/lib/supabase/client";
 
 export function Navbar() {
@@ -54,8 +54,7 @@ export function Navbar() {
       return;
     }
 
-    const redirectTo =
-      typeof window !== "undefined" ? `${window.location.origin}/` : undefined;
+    const redirectTo = typeof window !== "undefined" ? `${window.location.origin}/` : undefined;
 
     const { error } = await supabase.auth.signInWithOAuth({
       provider: "google",
@@ -95,68 +94,77 @@ export function Navbar() {
     "Guest";
 
   return (
-    <header className="sticky top-0 z-50 border-b border-white/10 bg-slate-950/80 backdrop-blur-xl">
+    <header className="sticky top-0 z-50 border-b border-sky-100 bg-white/80 backdrop-blur-xl">
       <div className="mx-auto flex max-w-7xl items-center justify-between px-4 py-4 sm:px-6 lg:px-8">
-        <div className="flex items-center gap-3">
-          <div className="flex h-10 w-10 items-center justify-center rounded-2xl bg-gradient-to-br from-pink-500 via-violet-500 to-cyan-400 shadow-lg shadow-pink-500/30">
+        <Link href="/" className="flex items-center gap-3">
+          <div className="flex h-10 w-10 items-center justify-center rounded-2xl bg-gradient-to-br from-sky-500 via-cyan-500 to-blue-600 shadow-lg shadow-sky-200">
             <Sparkles className="h-5 w-5 text-white" />
           </div>
-          <span className="text-xl font-black tracking-tight text-white">szuyuanlai</span>
-        </div>
+          <span className="text-xl font-black tracking-tight text-slate-900">szuyuanlai</span>
+        </Link>
 
-        <nav className="hidden items-center gap-8 text-sm font-medium text-slate-200 md:flex">
-          <a href="#plans" className="transition hover:text-pink-300">
+        <nav className="hidden items-center gap-8 text-sm font-medium text-slate-600 md:flex">
+          <a href="#plans" className="transition hover:text-sky-700">
             服務方案
           </a>
-          <a href="#gallery" className="transition hover:text-pink-300">
-            角色藝廊
-          </a>
-          <a href="#process" className="transition hover:text-pink-300">
+          <a href="#process" className="transition hover:text-sky-700">
             訂製流程
           </a>
-          <a href="#faq" className="transition hover:text-pink-300">
-            常見問題
+          <a href="#artists" className="transition hover:text-sky-700">
+            聯名畫師
           </a>
-          {user ? (
-            <Link href="/admin" className="transition hover:text-pink-300">
-              訂單管理
-            </Link>
-          ) : null}
+          <a href="#orders" className="transition hover:text-sky-700">
+            訂單查詢
+          </a>
         </nav>
 
-        <div className="flex items-center gap-3">
+        <div className="flex items-center gap-2 sm:gap-3">
           {isLoading ? (
-            <div className="h-10 w-32 animate-pulse rounded-full bg-white/5" />
+            <div className="h-10 w-32 animate-pulse rounded-full bg-sky-100" />
           ) : user ? (
-            <div className="flex items-center gap-3 rounded-full border border-white/10 bg-white/5 px-2 py-1.5">
-              <div className="flex h-9 w-9 items-center justify-center overflow-hidden rounded-full border border-pink-400/30 bg-slate-800">
-                {avatarUrl ? (
-                  <img
-                    src={avatarUrl}
-                    alt={displayName}
-                    className="h-full w-full object-cover"
-                  />
-                ) : (
-                  <UserCircle2 className="h-5 w-5 text-pink-200" />
-                )}
-              </div>
-
-              <span className="hidden text-sm font-medium text-white sm:block">{displayName}</span>
-
-              <button
-                type="button"
-                onClick={handleLogout}
-                className="inline-flex items-center gap-2 rounded-full border border-white/10 bg-slate-900 px-3 py-2 text-sm font-medium text-slate-100 transition hover:border-pink-400/40 hover:bg-slate-800"
+            <>
+              <Link
+                href="/orders"
+                className="hidden items-center gap-2 rounded-full border border-sky-200 bg-sky-50 px-3 py-2 text-sm font-medium text-sky-700 transition hover:border-sky-300 hover:bg-sky-100 sm:inline-flex"
               >
-                <LogOut className="h-4 w-4" />
-                <span className="hidden sm:inline">登出</span>
-              </button>
-            </div>
+                <ClipboardList className="h-4 w-4" />
+                訂單
+              </Link>
+
+              <Link
+                href="/account"
+                className="hidden items-center gap-2 rounded-full border border-sky-200 bg-white px-3 py-2 text-sm font-medium text-slate-700 transition hover:border-sky-300 hover:bg-sky-50 sm:inline-flex"
+              >
+                <UserRound className="h-4 w-4" />
+                帳號
+              </Link>
+
+              <div className="flex items-center gap-2 rounded-full border border-sky-200 bg-white px-2 py-1.5 shadow-sm">
+                <div className="flex h-8 w-8 items-center justify-center overflow-hidden rounded-full border border-sky-200 bg-sky-50">
+                  {avatarUrl ? (
+                    <img src={avatarUrl} alt={displayName} className="h-full w-full object-cover" />
+                  ) : (
+                    <UserCircle2 className="h-5 w-5 text-sky-600" />
+                  )}
+                </div>
+
+                <span className="hidden text-sm font-medium text-slate-700 sm:block">{displayName}</span>
+
+                <button
+                  type="button"
+                  onClick={handleLogout}
+                  className="inline-flex items-center gap-2 rounded-full bg-slate-900 px-2.5 py-2 text-xs font-medium text-white transition hover:bg-slate-700 sm:px-3"
+                >
+                  <LogOut className="h-3.5 w-3.5" />
+                  <span className="hidden sm:inline">登出</span>
+                </button>
+              </div>
+            </>
           ) : (
             <button
               type="button"
               onClick={handleLogin}
-              className="inline-flex items-center gap-2 rounded-full bg-gradient-to-r from-pink-500 via-violet-500 to-cyan-400 px-4 py-2.5 text-sm font-semibold text-white shadow-lg shadow-pink-500/30 transition hover:brightness-110"
+              className="inline-flex items-center gap-2 rounded-full bg-gradient-to-r from-sky-500 to-blue-600 px-4 py-2.5 text-sm font-semibold text-white shadow-lg shadow-sky-200 transition hover:translate-y-[-1px]"
             >
               <Globe className="h-4 w-4" />
               使用 Google 登入
