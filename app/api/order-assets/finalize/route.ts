@@ -1,12 +1,23 @@
 import { NextResponse } from "next/server";
-import { createRouteHandlerClient } from "@supabase/auth-helpers-nextjs";
+import { createRouteHandlerClient } from "@supabase/ssr";
 import { cookies } from "next/headers";
 
 export async function POST(req: Request) {
   try {
     const body = await req.json();
-    const { orderId, path, previewUrl } = body;
+    let { orderId, path, previewUrl } = body;
     if (!orderId || !path) return NextResponse.json({ error: 'Missing orderId or path' }, { status: 400 });
+
+    // sanitize incoming storage path: remove leading slash and bucket prefix if present
+    const KNOWN_BUCKETS = ["order-assets", "order-uploads", "artist-assets"];
+    if (typeof path !== 'string') return NextResponse.json({ error: 'Invalid path' }, { status: 400 });
+    path = path.replace(/^\/+/, '');
+    for (const b of KNOWN_BUCKETS) {
+      if (path.startsWith(b + '/')) {
+        path = path.slice((b + '/').length);
+        break;
+      }
+    }
 
     const supabase = createRouteHandlerClient({ cookies });
     const {

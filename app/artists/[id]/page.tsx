@@ -1,5 +1,5 @@
 import { cookies } from "next/headers";
-import { createServerComponentClient } from "@supabase/auth-helpers-nextjs";
+import { createServerClient } from "@supabase/ssr";
 import type { PortfolioItem, ArtistProfile } from "@/src/types/artist";
 import ArtistGallery from "@/src/components/ArtistGallery";
 import PricingTable from "@/src/components/PricingTable";
@@ -9,7 +9,7 @@ type Props = {
 };
 
 export default async function ArtistPage({ params }: Props) {
-  const supabase = createServerComponentClient({ cookies });
+  const supabase = createServerClient({ cookies });
 
   const { data: profileData } = await supabase.from<ArtistProfile>("profiles").select("*").eq("id", params.id).maybeSingle();
 

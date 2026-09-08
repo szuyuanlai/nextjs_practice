@@ -1,5 +1,5 @@
 import { cookies } from "next/headers";
-import { createServerComponentClient } from "@supabase/auth-helpers-nextjs";
+import { createServerClient } from "@supabase/ssr";
 import OrderStepper from "@/src/components/OrderStepper";
 import dynamic from "next/dynamic";
 import type { Order } from "@/src/types/order";
@@ -8,7 +8,7 @@ const PhotoStudioWrapper = dynamic(() => import("@/src/components/PhotoStudioWra
 const PODWrapper = dynamic(() => import("@/src/components/PODWrapper"), { ssr: false });
 
 export default async function MyAssetsPage() {
-  const supabase = createServerComponentClient({ cookies });
+  const supabase = createServerClient({ cookies });
   const {
     data: { user },
   } = await supabase.auth.getUser();

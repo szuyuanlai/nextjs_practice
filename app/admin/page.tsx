@@ -3,7 +3,7 @@
 import { useEffect, useMemo, useState } from "react";
 import Link from "next/link";
 import { ArrowLeft, CheckCircle2, Clock3, FileImage, Loader2, ShieldAlert } from "lucide-react";
-import { supabase } from "@/src/lib/supabase/client";
+import { getSupabaseClient } from "@/src/lib/supabase/client";
 
 type OrderStatus = "pending" | "approved" | "rejected" | "completed";
 
@@ -38,8 +38,10 @@ export default function AdminPage() {
     setIsLoading(true);
     setError(null);
 
-    const client = supabase;
-    if (!client) {
+    let client;
+    try {
+      client = getSupabaseClient();
+    } catch (err: any) {
       setError("Supabase 尚未設定，請先在 .env.local 中加入 NEXT_PUBLIC_SUPABASE_URL 與 NEXT_PUBLIC_SUPABASE_ANON_KEY。");
       setIsLoading(false);
       return;
@@ -69,8 +71,10 @@ export default function AdminPage() {
   };
 
   useEffect(() => {
-    const client = supabase;
-    if (!client) {
+    let client;
+    try {
+      client = getSupabaseClient();
+    } catch (err: any) {
       setError("Supabase 尚未設定，請先在 .env.local 中加入 NEXT_PUBLIC_SUPABASE_URL 與 NEXT_PUBLIC_SUPABASE_ANON_KEY。");
       setIsLoading(false);
       return;
@@ -92,12 +96,15 @@ export default function AdminPage() {
   const totalAmount = useMemo(() => orders.length, [orders]);
 
   const updateStatus = async (orderId: string, nextStatus: OrderStatus) => {
-    if (!supabase) {
+    let client;
+    try {
+      client = getSupabaseClient();
+    } catch (err: any) {
       alert("Supabase 尚未設定，無法更新狀態。");
       return;
     }
 
-    const { error } = await supabase.from("orders").update({ status: nextStatus }).eq("id", orderId);
+    const { error } = await client.from("orders").update({ status: nextStatus }).eq("id", orderId);
 
     if (error) {
       alert(error.message);

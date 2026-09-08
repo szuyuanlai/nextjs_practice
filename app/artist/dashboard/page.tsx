@@ -2,7 +2,7 @@
 
 import React, { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
-import { supabase } from "@/src/lib/supabase/client";
+import { getSupabaseClient } from "@/src/lib/supabase/client";
 
 export default function ArtistDashboardPage() {
   const router = useRouter();
@@ -11,14 +11,23 @@ export default function ArtistDashboardPage() {
 
   useEffect(() => {
     const load = async () => {
-      const { data: { user } } = await supabase.auth.getUser();
+      let client;
+      try {
+        client = getSupabaseClient();
+      } catch (err: any) {
+        alert('Supabase 尚未設定，請先在 .env.local 中加入 NEXT_PUBLIC_SUPABASE_URL 與 NEXT_PUBLIC_SUPABASE_ANON_KEY。');
+        router.push('/');
+        return;
+      }
+
+      const { data: { user } } = await client.auth.getUser();
       if (!user) {
         alert('請先登入');
         router.push('/');
         return;
       }
 
-      const { data: prof } = await supabase.from('profiles').select('*').eq('id', user.id).maybeSingle();
+      const { data: prof } = await client.from('profiles').select('*').eq('id', user.id).maybeSingle();
       const role = (prof as any)?.role ?? null;
       if (role !== 'artist' && role !== 'admin') {
         alert('權限不足');
