@@ -18,6 +18,7 @@ import { supabase } from "@/src/lib/supabase/client";
 export function Navbar() {
   const menuRef = useRef<HTMLDivElement | null>(null);
   const [user, setUser] = useState<User | null>(null);
+  const [role, setRole] = useState<string | null>(null);
   const [isLoading, setIsLoading] = useState(true);
   const [isMenuOpen, setIsMenuOpen] = useState(false);
   const [isOrderModalOpen, setIsOrderModalOpen] = useState(false);
@@ -43,6 +44,17 @@ export function Navbar() {
       }
 
       setUser(authUser);
+      // fetch profile role
+      try {
+        if (authUser) {
+          const { data: prof } = await client.from('profiles').select('role').eq('id', authUser.id).maybeSingle();
+          setRole((prof as any)?.role ?? null);
+        } else {
+          setRole(null);
+        }
+      } catch (e) {
+        console.warn('failed to fetch profile role', e);
+      }
       setIsLoading(false);
     };
 
@@ -68,6 +80,24 @@ export function Navbar() {
       document.removeEventListener("mousedown", handlePointerDown);
     };
   }, []);
+
+  useEffect(() => {
+    if (!user) {
+      setRole(null);
+      return;
+    }
+
+    const loadRole = async () => {
+      try {
+        const { data: prof } = await supabase.from('profiles').select('role').eq('id', user.id).maybeSingle();
+        setRole((prof as any)?.role ?? null);
+      } catch (e) {
+        console.warn('failed to fetch profile role', e);
+      }
+    };
+
+    void loadRole();
+  }, [user]);
 
   const handleLogin = async () => {
     if (!supabase) {
@@ -175,6 +205,11 @@ export function Navbar() {
                   </div>
 
                   <span className="hidden text-sm font-medium text-slate-700 sm:block">{displayName}</span>
+                  {role ? (
+                    <span className="ml-2 hidden rounded-full bg-slate-100 px-2 py-0.5 text-xs font-semibold text-slate-700 sm:inline-block">
+                      {role[0].toUpperCase() + role.slice(1)}
+                    </span>
+                  ) : null}
                   <ChevronDown className="h-4 w-4 text-slate-500" />
                 </button>
 
@@ -188,6 +223,49 @@ export function Navbar() {
                       <UserRound className="h-4 w-4" />
                       帳號資訊
                     </Link>
+
+                    {/* Role-aware links for artist/admin */}
+                    {role === 'artist' ? (
+                      <>
+                        <Link
+                          href="/artist/dashboard"
+                          className="flex items-center gap-2 rounded-xl px-3 py-2 text-sm font-medium text-slate-700 transition hover:bg-sky-50"
+                          onClick={() => setIsMenuOpen(false)}
+                        >
+                          <UserRound className="h-4 w-4" />
+                          繪師後台
+                        </Link>
+                        <Link
+                          href="/artist/profile"
+                          className="flex items-center gap-2 rounded-xl px-3 py-2 text-sm font-medium text-slate-700 transition hover:bg-sky-50"
+                          onClick={() => setIsMenuOpen(false)}
+                        >
+                          <UserRound className="h-4 w-4" />
+                          編輯個人檔案
+                        </Link>
+                      </>
+                    ) : null}
+
+                    {role === 'admin' ? (
+                      <>
+                        <Link
+                          href="/admin/dashboard"
+                          className="flex items-center gap-2 rounded-xl px-3 py-2 text-sm font-medium text-slate-700 transition hover:bg-sky-50"
+                          onClick={() => setIsMenuOpen(false)}
+                        >
+                          <UserRound className="h-4 w-4" />
+                          管理後台
+                        </Link>
+                        <Link
+                          href="/artist/profile"
+                          className="flex items-center gap-2 rounded-xl px-3 py-2 text-sm font-medium text-slate-700 transition hover:bg-sky-50"
+                          onClick={() => setIsMenuOpen(false)}
+                        >
+                          <UserRound className="h-4 w-4" />
+                          編輯個人檔案
+                        </Link>
+                      </>
+                    ) : null}
 
                     <button
                       type="button"

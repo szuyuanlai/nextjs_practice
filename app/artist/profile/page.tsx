@@ -1,6 +1,7 @@
 "use client";
 
 import React, { useEffect, useState } from "react";
+import { useRouter } from "next/navigation";
 import { supabase } from "@/src/lib/supabase/client";
 import type { ArtistProfile, PortfolioItem } from "@/src/types/artist";
 
@@ -14,6 +15,7 @@ export default function ArtistProfilePage() {
   const [status, setStatus] = useState<"idle" | "busy" | "closed">("idle");
   const [portfolios, setPortfolios] = useState<PortfolioItem[]>([]);
   const [uploading, setUploading] = useState(false);
+  const router = useRouter();
 
   useEffect(() => {
     const load = async () => {
@@ -40,6 +42,14 @@ export default function ArtistProfilePage() {
         .order("created_at", { ascending: false });
 
       setPortfolios((items as PortfolioItem[]) ?? []);
+      // redirect customers away
+      const role = (prof as any)?.role ?? null;
+      if (role === 'customer') {
+        alert('權限不足');
+        router.push('/');
+        return;
+      }
+
       setLoading(false);
     };
 
