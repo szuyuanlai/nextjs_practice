@@ -256,7 +256,7 @@ export function Navbar() {
                       onClick={() => setIsMenuOpen(false)}
                     >
                       <UserRound className="h-4 w-4" />
-                      ⚙️ 編輯個人資料
+                      編輯個人資料
                     </Link>
 
                     {normalizedRole === "ARTIST" || normalizedRole === "ADMIN" ? (
@@ -266,7 +266,7 @@ export function Navbar() {
                         onClick={() => setIsMenuOpen(false)}
                       >
                         <UserRound className="h-4 w-4" />
-                        🎨 繪師後台
+                        繪師後台
                       </Link>
                     ) : (
                       <Link
@@ -275,7 +275,7 @@ export function Navbar() {
                         onClick={() => setIsMenuOpen(false)}
                       >
                         <UserRound className="h-4 w-4" />
-                        📦 我的資產
+                        我的資產
                       </Link>
                     )}
 

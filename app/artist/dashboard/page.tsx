@@ -23,6 +23,11 @@ type StatusOption = "idle" | "busy" | "closed";
 const STORAGE_FALLBACKS = ["avatars", "artist-assets"] as const;
 const PORTFOLIO_BUCKETS = ["portfolios", "artist-assets"] as const;
 
+const normalizeRole = (value: unknown) => {
+  if (typeof value !== "string") return null;
+  return value.trim().toUpperCase();
+};
+
 export default function ArtistDashboardPage() {
   const router = useRouter();
   const [loading, setLoading] = useState(true);
@@ -39,6 +44,7 @@ export default function ArtistDashboardPage() {
   useEffect(() => {
     const load = async () => {
       if (!supabase) {
+        console.log("[ArtistDashboard] no supabase client");
         router.push("/");
         return;
       }
@@ -48,20 +54,41 @@ export default function ArtistDashboardPage() {
       } = await supabase.auth.getUser();
 
       if (!user) {
+        console.log("[ArtistDashboard] no authenticated user");
         router.push("/");
         return;
       }
 
-      const { data: prof } = await supabase
+      const { data: prof, error: profileError } = await supabase
         .from("profiles")
         .select("*")
         .eq("id", user.id)
         .maybeSingle();
 
       const profileData = prof as ArtistProfile | null;
-      const role = (profileData?.role ?? user.user_metadata?.role ?? "CLIENT").toString().toUpperCase();
+      const rawRole = profileData?.role ?? user.user_metadata?.role ?? null;
+      const role = normalizeRole(rawRole);
 
-      if (role !== "ARTIST" && role !== "ADMIN") {
+      console.log("[ArtistDashboard] access check", {
+        userId: user.id,
+        rawRole,
+        normalizedRole: role,
+        profileError: profileError ? profileError.message : null,
+      });
+
+      if (profileError) {
+        console.log("[ArtistDashboard] profile fetch failed", profileError);
+        alert("載入使用者資料失敗，請稍後再試。");
+        router.push("/");
+        return;
+      }
+
+      if (!role || !["ARTIST", "ADMIN"].includes(role)) {
+        console.log("[ArtistDashboard] access denied", {
+          userId: user.id,
+          rawRole,
+          normalizedRole: role,
+        });
         alert("您沒有權限訪問繪師後台");
         router.push("/");
         return;

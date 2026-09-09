@@ -13,6 +13,11 @@ type AdminProfile = {
   role?: string | null;
 };
 
+const normalizeRole = (value: unknown) => {
+  if (typeof value !== "string") return null;
+  return value.trim().toUpperCase();
+};
+
 export default function AdminDashboardPage() {
   const router = useRouter();
   const [loading, setLoading] = useState(true);
@@ -23,6 +28,7 @@ export default function AdminDashboardPage() {
     const load = async () => {
       const client = getSupabaseClient();
       if (!client) {
+        console.log("[AdminDashboard] no supabase client");
         setError("Supabase 尚未設定，請先在 .env.local 中加入 NEXT_PUBLIC_SUPABASE_URL 與 NEXT_PUBLIC_SUPABASE_ANON_KEY。");
         setLoading(false);
         return;
@@ -34,26 +40,41 @@ export default function AdminDashboardPage() {
       } = await client.auth.getUser();
 
       if (authError || !user) {
+        console.log("[AdminDashboard] no authenticated user");
         setError("請先登入才能進入管理後台。");
         setLoading(false);
         return;
       }
 
       const { data: prof, error: profileError } = await client.from("profiles").select("*").eq("id", user.id).maybeSingle();
-      const role = (prof as AdminProfile | null)?.role ?? null;
+      const rawRole = (prof as AdminProfile | null)?.role ?? null;
+      const role = normalizeRole(rawRole);
+
+      console.log("[AdminDashboard] access check", {
+        userId: user.id,
+        rawRole,
+        normalizedRole: role,
+        profileError: profileError ? profileError.message : null,
+      });
 
       if (profileError) {
+        console.log("[AdminDashboard] profile fetch failed", profileError);
         setError(profileError.message);
         setLoading(false);
         return;
       }
 
-      if (role === "artist") {
+      if (role === "ARTIST") {
         router.replace("/artist/dashboard");
         return;
       }
 
-      if (role !== "admin") {
+      if (role !== "ADMIN") {
+        console.log("[AdminDashboard] access denied", {
+          userId: user.id,
+          rawRole,
+          normalizedRole: role,
+        });
         setError("權限不足，此頁面僅限管理者存取。");
         setLoading(false);
         return;

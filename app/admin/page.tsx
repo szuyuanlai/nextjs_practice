@@ -38,6 +38,11 @@ const statusMap: Record<OrderStatus, { label: string; color: string }> = {
   completed: { label: "已完成", color: "bg-cyan-500/15 text-cyan-200 border-cyan-500/30" },
 };
 
+const normalizeRole = (value: unknown) => {
+  if (typeof value !== "string") return null;
+  return value.trim().toUpperCase();
+};
+
 export default function AdminPage() {
   const router = useRouter();
   const [orders, setOrders] = useState<OrderRow[]>([]);
@@ -91,21 +96,35 @@ export default function AdminPage() {
       .eq("id", user.id)
       .maybeSingle();
 
-    const role = (profileData as ProfileRow | null)?.role ?? null;
+    const rawRole = (profileData as ProfileRow | null)?.role ?? null;
+    const role = normalizeRole(rawRole);
+
+    console.log("[AdminPage] access check", {
+      userId: user.id,
+      rawRole,
+      normalizedRole: role,
+      profileError: profileError ? profileError.message : null,
+    });
 
     if (profileError) {
+      console.log("[AdminPage] profile fetch failed", profileError);
       setError(profileError.message);
       setAccessState("forbidden");
       return;
     }
 
-    if (role === "artist") {
+    if (role === "ARTIST") {
       setAccessState("loading");
       router.replace("/artist/dashboard");
       return;
     }
 
-    if (role !== "admin") {
+    if (role !== "ADMIN") {
+      console.log("[AdminPage] access denied for non-admin role", {
+        userId: user.id,
+        rawRole,
+        normalizedRole: role,
+      });
       setAccessState("forbidden");
       return;
     }
