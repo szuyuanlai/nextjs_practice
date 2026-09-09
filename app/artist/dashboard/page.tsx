@@ -619,10 +619,10 @@ export default function ArtistDashboardPage() {
                             <button
                               type="button"
                               onClick={() => handleTogglePin(item)}
-                              className="flex w-full items-center gap-2 rounded-xl px-3 py-2 text-left text-sm font-medium text-slate-700 transition hover:bg-sky-50"
+                              className="flex w-full items-center gap-2 rounded-xl px-3 py-2 text-left text-sm font-medium text-amber-600 transition hover:bg-amber-50 hover:text-amber-700"
                             >
-                              {item.is_pinned ? <PinOff className="h-4 w-4" /> : <Pin className="h-4 w-4" />}
-                              {item.is_pinned ? "📌 取消置頂" : "📌 置頂"}
+                              {item.is_pinned ? <PinOff className="h-4 w-4 shrink-0" /> : <Pin className="h-4 w-4 shrink-0" />}
+                              {item.is_pinned ? "取消置頂" : "置頂"}
                             </button>
                             <button
                               type="button"
