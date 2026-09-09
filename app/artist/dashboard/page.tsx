@@ -313,21 +313,53 @@ export default function ArtistDashboardPage() {
   };
 
   const handleSaveTitle = async () => {
-    if (!supabase || !editingPortfolio) {
+    if (!supabase || !editingPortfolio || !user) {
       return;
     }
 
-    const { error } = await supabase
-      .from("portfolios")
-      .update({ title: newTitleInput.trim() })
-      .eq("id", editingPortfolio.id);
+    const nextTitle = newTitleInput.trim();
+    console.log("Update title payload:", {
+      portfolioId: editingPortfolio.id,
+      artistId: user.id,
+      newTitle: nextTitle,
+    });
 
-    if (!error) {
+    try {
+      const { data, error } = await supabase
+        .from("portfolios")
+        .update({ title: nextTitle })
+        .eq("id", editingPortfolio.id)
+        .eq("artist_id", user.id)
+        .select();
+
+      console.log("Update result:", { data, error });
+
+      if (error) {
+        console.error("Update portfolio title failed:", error);
+        alert("修改失敗：" + error.message);
+        return;
+      }
+
+      const updatedTitle = data?.[0]?.title ?? nextTitle;
+
+      setPortfolios((current) =>
+        current.map((item) =>
+          item.id === editingPortfolio.id
+            ? {
+                ...item,
+                title: updatedTitle,
+              }
+            : item,
+        ),
+      );
+
       setEditingPortfolio(null);
+      setNewTitleInput("");
       await fetchPortfolios();
       setToast({ message: "作品名稱已更新。", kind: "success" });
-    } else {
-      alert("修改失敗：" + error.message);
+    } catch (error) {
+      console.error("Update portfolio title failed:", error);
+      alert("修改失敗，請稍後再試。");
     }
   };
 

@@ -31,11 +31,19 @@ export default async function ArtistPage({ params }: Props) {
     },
   );
 
-  const { data: profileData } = await supabase
+  console.log("Artist public page route id:", params.id);
+
+  const { data: profileData, error: profileError } = await supabase
     .from("profiles")
     .select("*")
     .eq("id", params.id)
-    .maybeSingle<ArtistProfile>();
+    .single<ArtistProfile>();
+
+  console.log("Artist profile query result:", {
+    paramsId: params.id,
+    profileData,
+    profileError,
+  });
 
   if (!profileData) {
     return (
@@ -51,12 +59,18 @@ export default async function ArtistPage({ params }: Props) {
     );
   }
 
-  const { data: portfolios } = await supabase
+  const { data: portfolios, error: portfolioError } = await supabase
     .from("portfolios")
     .select("*")
     .eq("artist_id", params.id)
     .order("is_pinned", { ascending: false })
     .order("created_at", { ascending: false });
+
+  console.log("Artist portfolio query result:", {
+    paramsId: params.id,
+    portfolios,
+    portfolioError,
+  });
 
   const publicPortfolios = (portfolios ?? []).filter((item) => !item.is_internal);
 
