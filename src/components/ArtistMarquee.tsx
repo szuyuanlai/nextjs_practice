@@ -4,7 +4,6 @@ import Link from "next/link";
 import { useEffect, useState } from "react";
 import { ArrowRight } from "lucide-react";
 import { supabase } from "@/src/lib/supabase/client";
-import { fetchArtistSpotlights } from "@/src/lib/artist-data";
 
 type ArtistSpotlight = {
   id: string;
@@ -31,7 +30,7 @@ export function ArtistMarquee() {
   const [isLoadingArtists, setIsLoadingArtists] = useState(true);
 
   useEffect(() => {
-    const loadArtists = async () => {
+    const fetchData = async () => {
       if (!supabase) {
         setArtists([]);
         setIsLoadingArtists(false);
@@ -40,27 +39,31 @@ export function ArtistMarquee() {
 
       try {
         setIsLoadingArtists(true);
-        const artistsData = await fetchArtistSpotlights(supabase);
-        setArtists((artistsData ?? []) as ArtistSpotlight[]);
+
+        const { data, error } = await supabase
+          .from("profiles")
+          .select("*")
+          .in("role", ["ARTIST", "ADMIN"]);
+
+        console.log("Fetching artists...", { data, error });
+
+        if (error) {
+          console.error("Failed to load artist profiles:", error.message, error.details);
+          setArtists([]);
+          return;
+        }
+
+        console.log("Successfully fetched artists:", data);
+        setArtists((data ?? []) as ArtistSpotlight[]);
       } catch (error) {
-        console.warn("Failed to load artist profiles:", error);
+        console.error("Failed to load artist profiles:", error);
         setArtists([]);
       } finally {
         setIsLoadingArtists(false);
       }
     };
 
-    void loadArtists();
-
-    const handleProfileUpdate = () => {
-      void loadArtists();
-    };
-
-    window.addEventListener("artist-profile-updated", handleProfileUpdate);
-
-    return () => {
-      window.removeEventListener("artist-profile-updated", handleProfileUpdate);
-    };
+    void fetchData();
   }, []);
 
   const marqueeArtists = artists.length > 0 ? [...artists, ...artists] : [];

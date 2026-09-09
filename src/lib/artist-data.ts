@@ -21,6 +21,8 @@ export async function fetchArtistSpotlights(supabase: any) {
     .in("role", ["ARTIST", "ADMIN"])
     .order("full_name", { ascending: true });
 
+  console.log("Artists fetched:", profiles, error);
+
   if (error) {
     throw error;
   }
