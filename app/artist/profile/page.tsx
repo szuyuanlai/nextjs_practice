@@ -11,6 +11,7 @@ export default function ArtistProfilePage() {
   const [profile, setProfile] = useState<ArtistProfile | null>(null);
   const [loading, setLoading] = useState(true);
   const [avatarFile, setAvatarFile] = useState<File | null>(null);
+  const [fullName, setFullName] = useState("");
   const [bio, setBio] = useState("");
   const [status, setStatus] = useState<"idle" | "busy" | "closed">("idle");
   const [portfolios, setPortfolios] = useState<PortfolioItem[]>([]);
@@ -31,9 +32,11 @@ export default function ArtistProfilePage() {
       }
 
       const { data: prof } = await supabase.from("profiles").select("*").eq("id", user.id).maybeSingle();
-      setProfile(prof as ArtistProfile | null);
-      setBio((prof as any)?.bio ?? "");
-      setStatus((prof as any)?.status ?? "idle");
+      const profileData = prof as ArtistProfile | null;
+      setProfile(profileData);
+      setFullName(profileData?.full_name ?? "");
+      setBio(profileData?.bio ?? "");
+      setStatus(profileData?.status ?? "idle");
 
       const { data: items } = await supabase
         .from("portfolios")
@@ -42,11 +45,10 @@ export default function ArtistProfilePage() {
         .order("created_at", { ascending: false });
 
       setPortfolios((items as PortfolioItem[]) ?? []);
-      // redirect customers away
-      const role = (prof as any)?.role ?? null;
-      if (role === 'customer') {
-        alert('權限不足');
-        router.push('/');
+      const role = profileData?.role ?? null;
+      if (role === "customer") {
+        console.warn("權限不足");
+        router.push("/");
         return;
       }
 
@@ -54,7 +56,7 @@ export default function ArtistProfilePage() {
     };
 
     void load();
-  }, []);
+  }, [router]);
 
   const handleAvatarChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const f = e.target.files?.[0] ?? null;
@@ -68,7 +70,7 @@ export default function ArtistProfilePage() {
 
     const { error: upErr } = await supabase.storage.from(BUCKET).upload(path, avatarFile, { upsert: true });
     if (upErr) {
-      alert("上傳失敗: " + upErr.message);
+      console.error("上傳失敗: ", upErr.message);
       setUploading(false);
       return;
     }
@@ -78,7 +80,7 @@ export default function ArtistProfilePage() {
 
     const { error: upd } = await supabase.from("profiles").update({ avatar_url: publicUrl }).eq("id", profile.id);
     if (upd) {
-      alert("更新大頭貼失敗: " + upd.message);
+      console.error("更新大頭貼失敗: ", upd.message);
       setUploading(false);
       return;
     }
@@ -90,13 +92,16 @@ export default function ArtistProfilePage() {
 
   const saveBioAndStatus = async () => {
     if (!profile || !supabase) return;
-    const { error } = await supabase.from("profiles").update({ bio, status }).eq("id", profile.id);
+    const { error } = await supabase
+      .from("profiles")
+      .update({ full_name: fullName.trim(), bio, status })
+      .eq("id", profile.id);
     if (error) {
-      alert("更新失敗: " + error.message);
+      console.error("更新失敗: ", error.message);
       return;
     }
-    setProfile({ ...profile, bio, status });
-    alert("已儲存");
+    setProfile({ ...profile, full_name: fullName.trim(), bio, status });
+    console.log("已儲存");
   };
 
   const handlePortfolioFiles = async (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -145,7 +150,7 @@ export default function ArtistProfilePage() {
     // Remove DB record
     const { error: delErr } = await supabase.from("portfolios").delete().eq("id", item.id);
     if (delErr) {
-      alert("刪除失敗: " + delErr.message);
+      console.error("刪除失敗: ", delErr.message);
       return;
     }
 
@@ -200,6 +205,16 @@ export default function ArtistProfilePage() {
             </div>
           </div>
         </div>
+      </section>
+
+      <section className="mb-6">
+        <h2 className="font-semibold mb-2">顯示名稱</h2>
+        <input
+          value={fullName}
+          onChange={(e) => setFullName(e.target.value)}
+          className="w-full rounded border p-2 text-sm"
+          placeholder="輸入你的名稱"
+        />
       </section>
 
       <section className="mb-6">

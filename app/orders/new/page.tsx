@@ -1,11 +1,17 @@
 "use client";
 
-import React, { useEffect, useState } from "react";
-import { useSearchParams, useRouter } from "next/navigation";
+import Link from "next/link";
+import React, { useEffect, useMemo, useState } from "react";
+import { useRouter, useSearchParams } from "next/navigation";
+import { ArrowLeft, ArrowRight, CheckCircle2, Sparkles, Upload } from "lucide-react";
 import { getSupabaseClient } from "@/src/lib/supabase/client";
-import type { OrderAsset } from "@/src/types/order";
 
 type Step = 1 | 2 | 3 | 4;
+
+type StatusMessage = {
+  type: "success" | "error";
+  message: string;
+};
 
 const HAIR_STYLES = [
   { id: "short", label: "短髮", img: "/samples/hair_short.jpg" },
@@ -28,52 +34,45 @@ const PERSONALITIES = [
 export default function NewOrderPage() {
   const search = useSearchParams();
   const router = useRouter();
-  const initialTier = search.get("tier") ?? "";
+  const initialTier = search.get("tier") ?? "Tier 1 - 三視圖專案";
   const initialArtist = search.get("artist") ?? "";
 
   const [step, setStep] = useState<Step>(1);
   const [tier, setTier] = useState(initialTier);
   const [artistId, setArtistId] = useState(initialArtist);
-
-  // visual selections
+  const [projectName, setProjectName] = useState("");
   const [hairStyle, setHairStyle] = useState(HAIR_STYLES[0].id);
   const [bodyType, setBodyType] = useState(BODY_TYPES[1].id);
   const [personality, setPersonality] = useState(PERSONALITIES[0].id);
   const [hairColor, setHairColor] = useState("#ffcc99");
   const [eyeColor, setEyeColor] = useState("#3366ff");
-
-  // references
   const [refs, setRefs] = useState<File[]>([]);
-  const [refPreviews, setRefPreviews] = useState<string[]>([]);
-
-  // contact and details
+  const refPreviews = useMemo(() => refs.map((file) => URL.createObjectURL(file)), [refs]);
   const [clientName, setClientName] = useState("");
   const [email, setEmail] = useState("");
   const [description, setDescription] = useState("");
   const [deadline, setDeadline] = useState("");
   const [budget, setBudget] = useState("");
-
   const [submitting, setSubmitting] = useState(false);
+  const [status, setStatus] = useState<StatusMessage | null>(null);
 
   useEffect(() => {
-    // generate previews
-    const urls = refs.map((f) => URL.createObjectURL(f));
-    setRefPreviews(urls);
-    return () => urls.forEach((u) => URL.revokeObjectURL(u));
-  }, [refs]);
+    return () => {
+      refPreviews.forEach((url) => URL.revokeObjectURL(url));
+    };
+  }, [refPreviews]);
 
-  const next = () => setStep((s) => (s < 4 ? ((s + 1) as Step) : s));
-  const prev = () => setStep((s) => (s > 1 ? ((s - 1) as Step) : s));
+  const next = () => setStep((current) => (current < 4 ? ((current + 1) as Step) : current));
+  const prev = () => setStep((current) => (current > 1 ? ((current - 1) as Step) : current));
 
-  const handleRefFiles = (e: React.ChangeEvent<HTMLInputElement>) => {
-    const files = e.target.files;
+  const handleRefFiles = (event: React.ChangeEvent<HTMLInputElement>) => {
+    const files = event.target.files;
     if (!files) return;
-    setRefs((prev) => [...prev, ...Array.from(files)]);
+    setRefs((current) => [...current, ...Array.from(files)]);
   };
 
-  // compress image using canvas
-  const compressImage = (file: File, maxWidth = 1600, quality = 0.8): Promise<File> => {
-    return new Promise((resolve, reject) => {
+  const compressImage = (file: File, maxWidth = 1600, quality = 0.8): Promise<File> =>
+    new Promise((resolve, reject) => {
       const img = new Image();
       img.onload = () => {
         const canvas = document.createElement("canvas");
@@ -81,285 +80,416 @@ export default function NewOrderPage() {
         canvas.width = Math.round(img.width * scale);
         canvas.height = Math.round(img.height * scale);
         const ctx = canvas.getContext("2d");
-        if (!ctx) return reject(new Error("Canvas not supported"));
+        if (!ctx) {
+          reject(new Error("Canvas not supported"));
+          return;
+        }
+
         ctx.drawImage(img, 0, 0, canvas.width, canvas.height);
         canvas.toBlob(
           (blob) => {
-            if (!blob) return reject(new Error("Compression failed"));
-            const newFile = new File([blob], file.name, { type: blob.type });
-            resolve(newFile);
+            if (!blob) {
+              reject(new Error("Compression failed"));
+              return;
+            }
+            resolve(new File([blob], file.name, { type: blob.type }));
           },
           "image/jpeg",
           quality,
         );
       };
-      img.onerror = (e) => reject(e);
+      img.onerror = () => reject(new Error("Image load failed"));
       img.src = URL.createObjectURL(file);
     });
-  };
 
   const handleSubmit = async () => {
+    setStatus(null);
     setSubmitting(true);
+
     try {
       const supabase = getSupabaseClient();
-      if (!supabase) throw new Error("Supabase not configured");
+      if (!supabase) {
+        throw new Error("Supabase 尚未設定，請先在 .env.local 添加 NEXT_PUBLIC_SUPABASE_URL 與 NEXT_PUBLIC_SUPABASE_ANON_KEY。 ");
+      }
 
-      // upload refs using presigned PUT URLs (true progress + retry)
-      const uploaded: OrderAsset[] = [];
-      const uploadProgresses: number[] = [];
+      const {
+        data: { user },
+        error: authError,
+      } = await supabase.auth.getUser();
 
-      for (let i = 0; i < refs.length; i++) {
-        let f = refs[i];
+      if (authError || !user) {
+        throw new Error("請先登入後再提交需求單。使用 Google 登入即可開始定制。");
+      }
 
-        // validation
-        if (!f.type.startsWith("image/")) {
-          alert(`${f.name} 不是圖片，已跳過`);
+      if (!projectName.trim() || !description.trim() || !clientName.trim() || !email.trim()) {
+        throw new Error("專案名稱、需求概述、聯絡姓名與 Email 為必填欄位。");
+      }
+
+      const uploadedAssets: Array<{ image_url: string | null; storage_path: string | null; purpose: string }> = [];
+
+      for (const file of refs) {
+        if (!file.type.startsWith("image/")) {
           continue;
         }
 
-        // compress if large
+        let uploadFile = file;
         try {
-          const compressed = await compressImage(f);
-          if (compressed.size < f.size) f = compressed;
-        } catch (e) {
-          console.warn("Compression failed, using original file", e);
-        }
-
-        // request presigned upload URL from server
-        const presignRes = await fetch('/api/order-assets/presign', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ filename: f.name, contentType: f.type, orderId: null, bucket: 'order-assets' }),
-        });
-        const presign = await presignRes.json();
-        if (!presign || !presign.uploadUrl) {
-          console.error('Presign failed', presign);
-          alert('無法取得上傳 URL，請稍後重試');
-          continue;
-        }
-
-        const uploadUrl: string = presign.uploadUrl;
-        const storagePath: string = presign.path;
-
-        // upload via XHR to support progress and retry
-        const maxRetries = 3;
-        let attempt = 0;
-        let success = false;
-        let lastErr: any = null;
-
-        while (attempt < maxRetries && !success) {
-          attempt += 1;
-          try {
-            await new Promise<void>((resolve, reject) => {
-              const xhr = new XMLHttpRequest();
-              xhr.open('PUT', uploadUrl);
-              xhr.setRequestHeader('Content-Type', f.type);
-              xhr.upload.onprogress = (ev) => {
-                if (ev.lengthComputable) {
-                  uploadProgresses[i] = Math.round((ev.loaded / ev.total) * 100);
-                }
-              };
-              xhr.onload = () => {
-                if (xhr.status >= 200 && xhr.status < 300) resolve();
-                else reject(new Error(`Upload failed status ${xhr.status}`));
-              };
-              xhr.onerror = (e) => reject(e);
-              xhr.send(f);
-            });
-            success = true;
-          } catch (err) {
-            lastErr = err;
-            console.warn('upload attempt failed', attempt, err);
-            await new Promise((r) => setTimeout(r, 500 * attempt));
+          const compressed = await compressImage(file);
+          if (compressed.size < file.size) {
+            uploadFile = compressed;
           }
+        } catch {
+          // fallback to original file
         }
 
-        if (!success) {
-          console.error('Failed to upload after retries', lastErr);
-          alert(`上傳 ${f.name} 失敗，請稍後重試。`);
+        const res = await fetch("/api/order-assets/presign", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            filename: uploadFile.name,
+            contentType: uploadFile.type || "image/jpeg",
+            orderId: null,
+            bucket: "order-assets",
+          }),
+        });
+
+        const presign = (await res.json()) as { uploadUrl?: string; path?: string; error?: string };
+        if (!presign.uploadUrl || !presign.path) {
           continue;
         }
 
-        // We don't have a public URL for private bucket; store storage_path and a temp preview
-        const previewUrl = URL.createObjectURL(f);
-        uploaded.push({ image_url: previewUrl, storage_path: storagePath, purpose: 'reference' });
+        const uploadUrl = presign.uploadUrl;
+        const storagePath = presign.path;
+
+        const uploadSucceeded = await new Promise<boolean>((resolve) => {
+          const xhr = new XMLHttpRequest();
+          xhr.open("PUT", uploadUrl);
+          xhr.setRequestHeader("Content-Type", uploadFile.type || "image/jpeg");
+          xhr.onload = () => resolve(xhr.status >= 200 && xhr.status < 300);
+          xhr.onerror = () => resolve(false);
+          xhr.send(uploadFile);
+        });
+
+        if (uploadSucceeded) {
+          uploadedAssets.push({
+            image_url: null,
+            storage_path: storagePath,
+            purpose: "reference",
+          });
+        }
       }
 
-      // prepare order payload
       const payload = {
-        client_id: (await supabase.auth.getUser()).data.user?.id ?? null,
+        client_id: user.id,
         artist_id: artistId || null,
-        tier,
-        client_name: clientName,
-        email,
-        description,
-        deadline,
-        budget,
+        tier: tier.trim() || "未指定",
+        client_name: clientName.trim(),
+        email: email.trim(),
+        description: `${projectName.trim()}\n\n${description.trim()}\n\n髮型: ${hairStyle} / 體型: ${bodyType} / 個性: ${personality} / 髮色: ${hairColor} / 眼色: ${eyeColor}`,
+        deadline: deadline.trim() || null,
+        budget: budget.trim() || null,
         status: "draft",
-        assets: uploaded,
-      } as any;
+        assets: uploadedAssets,
+      };
 
-      const { error } = await supabase.from("orders").insert(payload).select().maybeSingle();
+      const { error } = await supabase.from("orders").insert([payload]);
       if (error) {
-        console.error("insert order error", error.message);
-        alert("無法建立訂單：" + error.message);
-        setSubmitting(false);
-        return;
+        throw new Error(error.message);
       }
 
-      alert("訂單建立成功！");
-      router.push("/orders/thank-you");
-    } catch (err) {
-      console.error(err);
-      alert("送出失敗");
+      setStatus({ type: "success", message: "需求單已提交成功，平台已收到您的委託資訊。" });
+      setTimeout(() => {
+        router.push("/orders/thank-you");
+      }, 600);
+    } catch (error) {
+      console.error(error);
+      setStatus({
+        type: "error",
+        message: error instanceof Error ? error.message : "送出失敗，請稍後再試。",
+      });
     } finally {
       setSubmitting(false);
     }
   };
 
-  return (
-    <div className="max-w-4xl mx-auto p-6">
-      <h1 className="text-2xl font-bold mb-4">下單 - 視覺化需求單</h1>
+  const isStepValid = step === 1 ? Boolean(tier.trim()) : step === 2 ? true : step === 3 ? true : true;
 
-      <div className="mb-6">
-        <div className="flex gap-3 text-sm text-slate-600">
-          <div className={step >= 1 ? "font-semibold" : ""}>1. 選方案與繪師</div>
-          <div>→</div>
-          <div className={step >= 2 ? "font-semibold" : ""}>2. 視覺設定</div>
-          <div>→</div>
-          <div className={step >= 3 ? "font-semibold" : ""}>3. 參考圖</div>
-          <div>→</div>
-          <div className={step >= 4 ? "font-semibold" : ""}>4. 確認送出</div>
+  return (
+    <main className="min-h-screen bg-[linear-gradient(180deg,#f1fbff_0%,#edf7ff_18%,#ffffff_100%)] px-4 py-8 text-slate-800 sm:px-6 lg:px-8">
+      <div className="mx-auto max-w-5xl">
+        <Link href="/" className="mb-6 inline-flex items-center gap-2 text-sm font-medium text-sky-700 transition hover:text-sky-800">
+          <ArrowLeft className="h-4 w-4" />
+          返回首頁
+        </Link>
+
+        <div className="rounded-[32px] border border-sky-100 bg-white p-6 shadow-[0_24px_80px_rgba(14,116,144,0.08)] sm:p-8 lg:p-10">
+          <div className="mb-8 flex items-center justify-between gap-4">
+            <div>
+              <p className="mb-2 inline-flex items-center gap-2 rounded-full border border-sky-200 bg-sky-50 px-3 py-1 text-[11px] font-semibold uppercase tracking-[0.2em] text-sky-700">
+                <Sparkles className="h-3.5 w-3.5" />
+                需求提交
+              </p>
+              <h1 className="text-3xl font-black tracking-tight text-slate-900">開始你的專屬角色訂製</h1>
+            </div>
+          </div>
+
+          <div className="mb-8 grid gap-3 text-sm text-slate-600 sm:grid-cols-4">
+            {["選方案與繪師", "視覺設定", "參考圖與需求", "確認送出"].map((label, index) => (
+              <div
+                key={label}
+                className={`rounded-2xl border px-3 py-2 text-center ${step === index + 1 ? "border-sky-200 bg-sky-50 font-semibold text-sky-700" : "border-slate-200 bg-slate-50"}`}
+              >
+                {index + 1}. {label}
+              </div>
+            ))}
+          </div>
+
+          {status ? (
+            <div
+              className={`mb-6 rounded-2xl border p-4 text-sm ${
+                status.type === "success"
+                  ? "border-emerald-200 bg-emerald-50 text-emerald-700"
+                  : "border-red-200 bg-red-50 text-red-700"
+              }`}
+            >
+              {status.type === "success" ? <CheckCircle2 className="mr-2 inline h-4 w-4" /> : null}
+              {status.message}
+            </div>
+          ) : null}
+
+          {step === 1 && (
+            <section className="space-y-6">
+              <div className="grid gap-6 md:grid-cols-2">
+                <label className="grid gap-2 text-sm font-medium text-slate-700">
+                  <span>專案名稱</span>
+                  <input
+                    value={projectName}
+                    onChange={(event) => setProjectName(event.target.value)}
+                    className="rounded-2xl border border-sky-100 bg-sky-50/60 px-4 py-3 text-slate-800 placeholder:text-slate-400 focus:border-sky-400 focus:outline-none"
+                    placeholder="例如：夜色織夢角色設計"
+                  />
+                </label>
+
+                <label className="grid gap-2 text-sm font-medium text-slate-700">
+                  <span>選擇方案</span>
+                  <input
+                    value={tier}
+                    onChange={(event) => setTier(event.target.value)}
+                    className="rounded-2xl border border-sky-100 bg-sky-50/60 px-4 py-3 text-slate-800 placeholder:text-slate-400 focus:border-sky-400 focus:outline-none"
+                    placeholder="如：Tier 2 - 人設卡"
+                  />
+                </label>
+              </div>
+
+              <label className="grid gap-2 text-sm font-medium text-slate-700">
+                <span>偏好繪師 ID（可選）</span>
+                <input
+                  value={artistId}
+                  onChange={(event) => setArtistId(event.target.value)}
+                  className="rounded-2xl border border-sky-100 bg-sky-50/60 px-4 py-3 text-slate-800 focus:border-sky-400 focus:outline-none"
+                  placeholder="如：artist UUID 或可留空"
+                />
+              </label>
+
+              <div className="flex justify-end">
+                <button
+                  type="button"
+                  onClick={next}
+                  disabled={!isStepValid}
+                  className="inline-flex items-center gap-2 rounded-full bg-sky-600 px-5 py-3 font-semibold text-white disabled:cursor-not-allowed disabled:bg-slate-300"
+                >
+                  下一步 <ArrowRight className="h-4 w-4" />
+                </button>
+              </div>
+            </section>
+          )}
+
+          {step === 2 && (
+            <section className="space-y-6">
+              <div>
+                <h3 className="mb-3 text-lg font-black text-slate-900">髮型</h3>
+                <div className="grid gap-3 md:grid-cols-3">
+                  {HAIR_STYLES.map((item) => (
+                    <button
+                      key={item.id}
+                      type="button"
+                      onClick={() => setHairStyle(item.id)}
+                      className={`rounded-2xl border p-2 text-left ${hairStyle === item.id ? "border-sky-300 ring-2 ring-sky-200" : "border-slate-200"}`}
+                    >
+                      <img src={item.img} alt={item.label} className="h-24 w-full rounded-xl object-cover" />
+                      <div className="mt-2 text-center text-sm font-semibold text-slate-700">{item.label}</div>
+                    </button>
+                  ))}
+                </div>
+              </div>
+
+              <div>
+                <h3 className="mb-3 text-lg font-black text-slate-900">體型</h3>
+                <div className="grid gap-3 md:grid-cols-3">
+                  {BODY_TYPES.map((item) => (
+                    <button
+                      key={item.id}
+                      type="button"
+                      onClick={() => setBodyType(item.id)}
+                      className={`rounded-2xl border p-2 text-left ${bodyType === item.id ? "border-indigo-300 ring-2 ring-indigo-200" : "border-slate-200"}`}
+                    >
+                      <img src={item.img} alt={item.label} className="h-24 w-full rounded-xl object-cover" />
+                      <div className="mt-2 text-center text-sm font-semibold text-slate-700">{item.label}</div>
+                    </button>
+                  ))}
+                </div>
+              </div>
+
+              <div>
+                <h3 className="mb-3 text-lg font-black text-slate-900">個性特質</h3>
+                <div className="flex flex-wrap gap-3">
+                  {PERSONALITIES.map((item) => (
+                    <button
+                      key={item.id}
+                      type="button"
+                      onClick={() => setPersonality(item.id)}
+                      className={`rounded-full border px-4 py-2 text-sm font-semibold ${personality === item.id ? "border-amber-300 bg-amber-100 text-amber-700" : "border-slate-200 bg-slate-50 text-slate-700"}`}
+                    >
+                      {item.label}
+                    </button>
+                  ))}
+                </div>
+              </div>
+
+              <div className="grid gap-5 md:grid-cols-2">
+                <label className="grid gap-2 text-sm font-medium text-slate-700">
+                  <span>髮色</span>
+                  <input type="color" value={hairColor} onChange={(event) => setHairColor(event.target.value)} className="h-12 w-20 rounded-md border border-slate-200 bg-white p-1" />
+                </label>
+                <label className="grid gap-2 text-sm font-medium text-slate-700">
+                  <span>眼色</span>
+                  <input type="color" value={eyeColor} onChange={(event) => setEyeColor(event.target.value)} className="h-12 w-20 rounded-md border border-slate-200 bg-white p-1" />
+                </label>
+              </div>
+
+              <div className="flex justify-between">
+                <button type="button" onClick={prev} className="rounded-full border border-slate-200 bg-white px-4 py-2.5 font-semibold text-slate-700">
+                  上一步
+                </button>
+                <button type="button" onClick={next} className="rounded-full bg-sky-600 px-5 py-3 font-semibold text-white">
+                  下一步
+                </button>
+              </div>
+            </section>
+          )}
+
+          {step === 3 && (
+            <section className="space-y-6">
+              <div className="rounded-2xl border border-dashed border-sky-200 bg-sky-50/40 p-4">
+                <div className="flex items-center gap-3 text-sky-700">
+                  <Upload className="h-5 w-5" />
+                  <span className="font-semibold">參考圖上傳</span>
+                </div>
+                <input type="file" multiple accept="image/*" onChange={handleRefFiles} className="mt-4 w-full text-sm text-slate-600" />
+              </div>
+
+              {refPreviews.length > 0 ? (
+                <div className="grid gap-3 sm:grid-cols-3">
+                  {refPreviews.map((preview, index) => (
+                    <img key={`${preview}-${index}`} src={preview} alt={`參考圖 ${index + 1}`} className="h-28 w-full rounded-2xl border border-slate-200 object-cover" />
+                  ))}
+                </div>
+              ) : null}
+
+              <label className="grid gap-2 text-sm font-medium text-slate-700">
+                <span>需求概述</span>
+                <textarea
+                  rows={6}
+                  value={description}
+                  onChange={(event) => setDescription(event.target.value)}
+                  className="rounded-2xl border border-sky-100 bg-sky-50/60 px-4 py-3 text-slate-800 placeholder:text-slate-400 focus:border-sky-400 focus:outline-none"
+                  placeholder="請描述希望的角色風格、情感氛圍、細節與使用場景。"
+                />
+              </label>
+
+              <div className="flex justify-between">
+                <button type="button" onClick={prev} className="rounded-full border border-slate-200 bg-white px-4 py-2.5 font-semibold text-slate-700">
+                  上一步
+                </button>
+                <button type="button" onClick={next} className="rounded-full bg-sky-600 px-5 py-3 font-semibold text-white">
+                  下一步
+                </button>
+              </div>
+            </section>
+          )}
+
+          {step === 4 && (
+            <section className="space-y-6">
+              <div className="grid gap-6 md:grid-cols-2">
+                <label className="grid gap-2 text-sm font-medium text-slate-700">
+                  <span>聯絡姓名</span>
+                  <input
+                    value={clientName}
+                    onChange={(event) => setClientName(event.target.value)}
+                    className="rounded-2xl border border-sky-100 bg-sky-50/60 px-4 py-3 text-slate-800 focus:border-sky-400 focus:outline-none"
+                  />
+                </label>
+
+                <label className="grid gap-2 text-sm font-medium text-slate-700">
+                  <span>Email</span>
+                  <input
+                    type="email"
+                    value={email}
+                    onChange={(event) => setEmail(event.target.value)}
+                    className="rounded-2xl border border-sky-100 bg-sky-50/60 px-4 py-3 text-slate-800 focus:border-sky-400 focus:outline-none"
+                  />
+                </label>
+              </div>
+
+              <div className="grid gap-6 md:grid-cols-2">
+                <label className="grid gap-2 text-sm font-medium text-slate-700">
+                  <span>期望交期</span>
+                  <input
+                    value={deadline}
+                    onChange={(event) => setDeadline(event.target.value)}
+                    className="rounded-2xl border border-sky-100 bg-sky-50/60 px-4 py-3 text-slate-800 focus:border-sky-400 focus:outline-none"
+                    placeholder="如：2 週內"
+                  />
+                </label>
+
+                <label className="grid gap-2 text-sm font-medium text-slate-700">
+                  <span>預算</span>
+                  <input
+                    value={budget}
+                    onChange={(event) => setBudget(event.target.value)}
+                    className="rounded-2xl border border-sky-100 bg-sky-50/60 px-4 py-3 text-slate-800 focus:border-sky-400 focus:outline-none"
+                    placeholder="如：NT$ 6,800"
+                  />
+                </label>
+              </div>
+
+              <div className="rounded-[24px] border border-sky-100 bg-sky-50/40 p-5">
+                <p className="mb-2 text-xs uppercase tracking-[0.2em] text-slate-500">需求摘要</p>
+                <div className="grid gap-2 text-sm text-slate-700">
+                  <div>方案：{tier}</div>
+                  <div>專案名稱：{projectName || "未命名專案"}</div>
+                  <div>繪師：{artistId || "未指定"}</div>
+                  <div>風格：{hairStyle} / {bodyType} / {personality}</div>
+                </div>
+              </div>
+
+              <div className="flex justify-between">
+                <button type="button" onClick={prev} className="rounded-full border border-slate-200 bg-white px-4 py-2.5 font-semibold text-slate-700">
+                  上一步
+                </button>
+                <button
+                  type="button"
+                  onClick={handleSubmit}
+                  disabled={submitting || !clientName.trim() || !email.trim() || !description.trim()}
+                  className="rounded-full bg-gradient-to-r from-pink-500 to-amber-400 px-5 py-3 font-semibold text-white disabled:cursor-not-allowed disabled:opacity-60"
+                >
+                  {submitting ? "送出中…" : "確認送出"}
+                </button>
+              </div>
+            </section>
+          )}
         </div>
       </div>
-
-      {step === 1 && (
-        <section>
-          <label className="block text-sm mb-1">選擇 Tier</label>
-          <input className="w-full mb-3 p-2 border rounded" value={tier} onChange={(e) => setTier(e.target.value)} placeholder="例如：Tier 2 - 人設卡" />
-
-          <label className="block text-sm mb-1">偏好繪師 ID（可選）</label>
-          <input className="w-full mb-3 p-2 border rounded" value={artistId} onChange={(e) => setArtistId(e.target.value)} />
-
-          <div className="flex justify-end gap-2">
-            <button className="px-4 py-2 rounded bg-sky-600 text-white" onClick={next}>
-              下一步
-            </button>
-          </div>
-        </section>
-      )}
-
-      {step === 2 && (
-        <section>
-          <h3 className="font-semibold mb-2">髮型</h3>
-          <div className="grid grid-cols-3 gap-3 mb-4">
-            {HAIR_STYLES.map((h) => (
-              <button key={h.id} onClick={() => setHairStyle(h.id)} className={`p-2 rounded border ${hairStyle === h.id ? "ring-2 ring-pink-400" : ""}`}>
-                <img src={h.img} alt={h.label} className="h-24 w-full object-cover rounded" />
-                <div className="text-center mt-1 text-sm">{h.label}</div>
-              </button>
-            ))}
-          </div>
-
-          <h3 className="font-semibold mb-2">體型</h3>
-          <div className="grid grid-cols-3 gap-3 mb-4">
-            {BODY_TYPES.map((b) => (
-              <button key={b.id} onClick={() => setBodyType(b.id)} className={`p-2 rounded border ${bodyType === b.id ? "ring-2 ring-indigo-400" : ""}`}>
-                <img src={b.img} alt={b.label} className="h-24 w-full object-cover rounded" />
-                <div className="text-center mt-1 text-sm">{b.label}</div>
-              </button>
-            ))}
-          </div>
-
-          <h3 className="font-semibold mb-2">個性特質</h3>
-          <div className="flex gap-3 mb-4">
-            {PERSONALITIES.map((p) => (
-              <button key={p.id} onClick={() => setPersonality(p.id)} className={`px-3 py-2 rounded border ${personality === p.id ? "bg-amber-200/30" : ""}`}>
-                {p.label}
-              </button>
-            ))}
-          </div>
-
-          <div className="grid grid-cols-2 gap-4 mb-4">
-            <div>
-              <label className="block text-sm mb-1">髮色</label>
-              <input type="color" value={hairColor} onChange={(e) => setHairColor(e.target.value)} className="w-16 h-10 p-0 border rounded" />
-            </div>
-            <div>
-              <label className="block text-sm mb-1">眼色</label>
-              <input type="color" value={eyeColor} onChange={(e) => setEyeColor(e.target.value)} className="w-16 h-10 p-0 border rounded" />
-            </div>
-          </div>
-
-          <div className="flex justify-between">
-            <button className="px-4 py-2 rounded border" onClick={prev}>
-              上一步
-            </button>
-            <button className="px-4 py-2 rounded bg-sky-600 text-white" onClick={next}>
-              下一步
-            </button>
-          </div>
-        </section>
-      )}
-
-      {step === 3 && (
-        <section>
-          <label className="block text-sm mb-2">上傳參考圖（可多選）</label>
-          <input type="file" multiple accept="image/*" onChange={handleRefFiles} className="mb-3" />
-
-          <div className="grid grid-cols-3 gap-3 mb-4">
-            {refPreviews.map((p, i) => (
-              // eslint-disable-next-line @next/next/no-img-element
-              <img key={i} src={p} alt={`ref-${i}`} className="h-28 w-full object-cover rounded border" />
-            ))}
-          </div>
-
-          <label className="block text-sm mb-1">補充說明</label>
-          <textarea className="w-full mb-3 p-2 border rounded" rows={5} value={description} onChange={(e) => setDescription(e.target.value)} />
-
-          <div className="flex justify-between">
-            <button className="px-4 py-2 rounded border" onClick={prev}>
-              上一步
-            </button>
-            <button className="px-4 py-2 rounded bg-sky-600 text-white" onClick={next}>
-              下一步
-            </button>
-          </div>
-        </section>
-      )}
-
-      {step === 4 && (
-        <section>
-          <h3 className="text-lg font-semibold mb-2">確認與提交</h3>
-          <div className="mb-2">方案：{tier}</div>
-          <div className="mb-2">繪師 ID：{artistId || '未指定'}</div>
-          <div className="mb-2">髮型：{hairStyle}，髮色：{hairColor}</div>
-          <div className="mb-2">體型：{bodyType}，個性：{personality}</div>
-
-          <hr className="my-3" />
-
-          <label className="block text-sm mb-1">聯絡姓名</label>
-          <input className="w-full mb-2 p-2 border rounded" value={clientName} onChange={(e) => setClientName(e.target.value)} />
-
-          <label className="block text-sm mb-1">聯絡 Email</label>
-          <input className="w-full mb-2 p-2 border rounded" value={email} onChange={(e) => setEmail(e.target.value)} />
-
-          <label className="block text-sm mb-1">期望交期</label>
-          <input className="w-full mb-2 p-2 border rounded" value={deadline} onChange={(e) => setDeadline(e.target.value)} />
-
-          <label className="block text-sm mb-1">預算</label>
-          <input className="w-full mb-2 p-2 border rounded" value={budget} onChange={(e) => setBudget(e.target.value)} />
-
-          <div className="mt-4 flex justify-between">
-            <button className="px-4 py-2 rounded border" onClick={prev}>
-              上一步
-            </button>
-            <button className="px-4 py-2 rounded bg-gradient-to-r from-pink-500 to-amber-400 text-white" onClick={handleSubmit} disabled={submitting}>
-              {submitting ? "送出中…" : "確認送出"}
-            </button>
-          </div>
-        </section>
-      )}
-    </div>
+    </main>
   );
 }

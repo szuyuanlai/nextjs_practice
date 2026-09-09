@@ -15,56 +15,68 @@ import {
 import { OrderHistoryModal } from "@/src/components/OrderHistoryModal";
 import { supabase } from "@/src/lib/supabase/client";
 
+type ProfileRoleRow = {
+  role?: string | null;
+};
+
 export function Navbar() {
   const menuRef = useRef<HTMLDivElement | null>(null);
   const [user, setUser] = useState<User | null>(null);
   const [role, setRole] = useState<string | null>(null);
-  const [isLoading, setIsLoading] = useState(true);
+  const [isLoading, setIsLoading] = useState(supabase !== null);
   const [isMenuOpen, setIsMenuOpen] = useState(false);
   const [isOrderModalOpen, setIsOrderModalOpen] = useState(false);
 
   useEffect(() => {
     const client = supabase;
     if (!client) {
-      setIsLoading(false);
       return;
     }
 
     const syncUser = async () => {
-      const {
-        data: { user: authUser },
-        error,
-      } = await client.auth.getUser();
-
-      if (error) {
-        console.error("Failed to fetch user:", error.message);
-        setUser(null);
-        setIsLoading(false);
-        return;
-      }
-
-      setUser(authUser);
-      // fetch profile role
       try {
-        if (authUser) {
-          const { data: prof } = await client.from('profiles').select('role').eq('id', authUser.id).maybeSingle();
-          setRole((prof as any)?.role ?? null);
-        } else {
+        const {
+          data: { session },
+          error,
+        } = await client.auth.getSession();
+
+        if (error) {
+          const msg = error.message ?? "";
+          const isGuestState = /auth session missing|session missing|not authenticated/i.test(msg);
+
+          if (!isGuestState) {
+            console.warn("Failed to read auth session:", msg);
+          }
+
+          setUser(null);
           setRole(null);
+          setIsLoading(false);
+          return;
         }
-      } catch (e) {
-        console.warn('failed to fetch profile role', e);
+
+        const nextUser = session?.user ?? null;
+        setUser(nextUser);
+        setRole(null);
+        setIsLoading(false);
+      } catch {
+        setUser(null);
+        setRole(null);
+        setIsLoading(false);
       }
-      setIsLoading(false);
     };
 
     void syncUser();
 
     const {
       data: { subscription },
-    } = client.auth.onAuthStateChange((_event, session) => {
-      setUser(session?.user ?? null);
+    } = client.auth.onAuthStateChange((event, session) => {
+      const nextUser = session?.user ?? null;
+      setUser(nextUser);
       setIsLoading(false);
+
+      if (event === "SIGNED_OUT" || !nextUser) {
+        setRole(null);
+      }
     });
 
     const handlePointerDown = (event: MouseEvent) => {
@@ -83,16 +95,20 @@ export function Navbar() {
 
   useEffect(() => {
     if (!user) {
-      setRole(null);
       return;
     }
 
     const loadRole = async () => {
       try {
-        const { data: prof } = await supabase.from('profiles').select('role').eq('id', user.id).maybeSingle();
-        setRole((prof as any)?.role ?? null);
+        const { data: prof } = await supabase
+          .from("profiles")
+          .select("role")
+          .eq("id", user.id)
+          .maybeSingle<ProfileRoleRow>();
+
+        setRole((prof?.role as string | null | undefined) ?? null);
       } catch (e) {
-        console.warn('failed to fetch profile role', e);
+        console.warn("failed to fetch profile role", e);
       }
     };
 
@@ -101,7 +117,7 @@ export function Navbar() {
 
   const handleLogin = async () => {
     if (!supabase) {
-      alert("Supabase 尚未設定，請先填入 NEXT_PUBLIC_SUPABASE_URL 與 NEXT_PUBLIC_SUPABASE_ANON_KEY。");
+      console.warn("Supabase 尚未設定，請先填入 NEXT_PUBLIC_SUPABASE_URL 與 NEXT_PUBLIC_SUPABASE_ANON_KEY。");
       return;
     }
 
@@ -116,13 +132,13 @@ export function Navbar() {
 
     if (error) {
       console.error("Login failed:", error.message);
-      alert(error.message);
+      console.warn(error.message);
     }
   };
 
   const handleLogout = async () => {
     if (!supabase) {
-      alert("Supabase 尚未設定，無法登出。");
+      console.warn("Supabase 尚未設定，無法登出。");
       return;
     }
 
@@ -130,7 +146,7 @@ export function Navbar() {
 
     if (error) {
       console.error("Logout failed:", error.message);
-      alert(error.message);
+      console.warn(error.message);
       return;
     }
 
@@ -168,7 +184,7 @@ export function Navbar() {
             <div className="flex h-10 w-10 items-center justify-center rounded-2xl bg-gradient-to-br from-sky-500 via-cyan-500 to-blue-600 shadow-lg shadow-sky-200">
               <Sparkles className="h-5 w-5 text-white" />
             </div>
-            <span className="text-xl font-black tracking-tight text-slate-900">szuyuanlai</span>
+            <span className="text-xl font-black tracking-tight text-slate-900">TONE</span>
           </Link>
 
           <nav className="hidden items-center gap-8 text-sm font-medium text-slate-600 md:flex">

@@ -13,7 +13,7 @@ const geistMono = Geist_Mono({
 });
 
 export const metadata: Metadata = {
-  title: "szuyuanlai | 角色設計與品牌聯名工作室",
+  title: "TONE | 角色設計與品牌聯名工作室",
   description: "提供服務方案、訂製流程、聯名畫師與訂單查詢的角色設計工作室。",
 };
 

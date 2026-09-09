@@ -10,9 +10,10 @@ export const supabase =
 
 export function getSupabaseClient() {
   if (!supabase) {
-    throw new Error(
+    console.warn(
       "Supabase is not configured. Please set NEXT_PUBLIC_SUPABASE_URL and NEXT_PUBLIC_SUPABASE_ANON_KEY.",
     );
+    return null;
   }
 
   return supabase;

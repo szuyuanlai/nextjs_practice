@@ -33,14 +33,14 @@ export default function PODModal({ orderId, onClose }: { orderId?: string; onClo
 
       const { error } = await supabase.from("pod_requests").insert(payload);
       if (error) {
-        alert("送出失敗：" + error.message);
+        console.error("POD request submit failed:", error.message);
       } else {
-        alert("已送出印製需求，廠商將與你聯絡。");
+        console.log("POD request submitted, vendor will contact user.");
         onClose();
       }
     } catch (err: any) {
       console.error(err);
-      alert(err.message ?? String(err));
+      console.warn(err.message ?? String(err));
     } finally {
       setSubmitting(false);
     }

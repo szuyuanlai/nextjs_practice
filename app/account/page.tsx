@@ -3,11 +3,19 @@
 import Link from "next/link";
 import { useEffect, useState } from "react";
 import type { User } from "@supabase/supabase-js";
-import { ArrowLeft, Loader2, Mail, ShieldCheck, UserCircle2 } from "lucide-react";
+import { ArrowLeft, Briefcase, Loader2, Mail, ShieldCheck, UserCircle2 } from "lucide-react";
 import { supabase } from "@/src/lib/supabase/client";
+
+type ProfileRow = {
+  role?: string | null;
+  full_name?: string | null;
+  avatar_url?: string | null;
+};
 
 export default function AccountPage() {
   const [user, setUser] = useState<User | null>(null);
+  const [profile, setProfile] = useState<ProfileRow | null>(null);
+  const [role, setRole] = useState<string | null>(null);
   const [isLoading, setIsLoading] = useState(true);
 
   useEffect(() => {
@@ -20,27 +28,49 @@ export default function AccountPage() {
       const { data, error } = await supabase.auth.getUser();
       if (error || !data.user) {
         setUser(null);
+        setProfile(null);
+        setRole(null);
         setIsLoading(false);
         return;
       }
 
       setUser(data.user);
+
+      const { data: profileData } = await supabase
+        .from("profiles")
+        .select("role, full_name, avatar_url")
+        .eq("id", data.user.id)
+        .maybeSingle();
+
+      const nextProfile = (profileData as ProfileRow | null) ?? null;
+      setProfile(nextProfile);
+      setRole(nextProfile?.role ?? "customer");
       setIsLoading(false);
     };
 
     void syncUser();
   }, []);
 
-  const avatarUrl = user?.user_metadata?.avatar_url as string | undefined;
+  const avatarUrl = (profile?.avatar_url ?? (user?.user_metadata?.avatar_url as string | undefined)) ?? undefined;
   const displayName =
+    profile?.full_name ??
     (user?.user_metadata?.full_name as string | undefined) ??
     (user?.user_metadata?.name as string | undefined) ??
     user?.email?.split("@")[0] ??
     "使用者";
 
+  const roleLabel = role === "artist" ? "繪師" : role === "admin" ? "管理者" : "會員";
+
+  const quickLinks = [
+    { label: "查看訂單", href: "/orders" },
+    { label: "繪師後台", href: "/artist/dashboard", show: role === "artist" || role === "admin" },
+    { label: "編輯個人檔案", href: "/artist/profile", show: role === "artist" || role === "admin" },
+    { label: "管理後台", href: "/admin", show: role === "admin" },
+  ].filter((link) => link.show !== false);
+
   return (
     <main className="min-h-screen bg-[linear-gradient(180deg,#f1fbff_0%,#edf7ff_18%,#ffffff_100%)] px-4 py-8 text-slate-800 sm:px-6 lg:px-8">
-      <div className="mx-auto max-w-4xl">
+      <div className="mx-auto max-w-5xl">
         <Link href="/" className="mb-6 inline-flex items-center gap-2 text-sm font-medium text-sky-700 transition hover:text-sky-800">
           <ArrowLeft className="h-4 w-4" />
           返回首頁
@@ -74,7 +104,7 @@ export default function AccountPage() {
                   )}
                 </div>
                 <div>
-                  <p className="text-xs uppercase tracking-[0.2em] text-slate-500">會員</p>
+                  <p className="text-xs uppercase tracking-[0.2em] text-slate-500">{roleLabel}</p>
                   <h1 className="text-2xl font-black text-slate-900">{displayName}</h1>
                 </div>
               </div>
@@ -93,23 +123,34 @@ export default function AccountPage() {
 
             <section className="rounded-[30px] border border-sky-100 bg-white p-6 shadow-sm">
               <h2 className="text-2xl font-black text-slate-900">帳號概覽</h2>
+
               <div className="mt-6 grid gap-4 sm:grid-cols-2">
                 <div className="rounded-2xl border border-sky-100 bg-sky-50/60 p-4">
                   <p className="text-xs uppercase tracking-[0.2em] text-slate-500">登入方式</p>
                   <p className="mt-3 text-xl font-black text-slate-900">Google</p>
                 </div>
                 <div className="rounded-2xl border border-sky-100 bg-sky-50/60 p-4">
-                  <p className="text-xs uppercase tracking-[0.2em] text-slate-500">帳號狀態</p>
-                  <p className="mt-3 text-xl font-black text-slate-900">已啟用</p>
+                  <p className="text-xs uppercase tracking-[0.2em] text-slate-500">角色</p>
+                  <p className="mt-3 text-xl font-black text-slate-900">{roleLabel}</p>
                 </div>
               </div>
 
               <div className="mt-6 rounded-2xl border border-sky-100 bg-slate-50 p-4">
-                <p className="text-xs uppercase tracking-[0.2em] text-slate-500">快速連結</p>
+                <div className="flex items-center gap-2 text-sm font-semibold text-slate-700">
+                  <Briefcase className="h-4 w-4 text-sky-600" />
+                  快速連結
+                </div>
+
                 <div className="mt-4 flex flex-wrap gap-3">
-                  <Link href="/orders" className="rounded-full bg-sky-600 px-4 py-2.5 font-semibold text-white hover:bg-sky-700">
-                    查看訂單
-                  </Link>
+                  {quickLinks.map((link) => (
+                    <Link
+                      key={link.href}
+                      href={link.href}
+                      className="rounded-full bg-sky-600 px-4 py-2.5 font-semibold text-white hover:bg-sky-700"
+                    >
+                      {link.label}
+                    </Link>
+                  ))}
                   <Link href="/" className="rounded-full border border-sky-200 bg-white px-4 py-2.5 font-semibold text-sky-700 hover:bg-sky-50">
                     回首頁
                   </Link>

@@ -4,6 +4,7 @@ import { useState } from "react";
 import Link from "next/link";
 import { ArrowRight, BadgeCheck, ClipboardList, Palette, Sparkles, Wand2 } from "lucide-react";
 import { Navbar } from "@/src/components/Navbar";
+import { ArtistMarquee } from "@/src/components/ArtistMarquee";
 import { OrderForm } from "@/src/components/OrderForm";
 import { OrderHistoryModal } from "@/src/components/OrderHistoryModal";
 
@@ -34,12 +35,6 @@ const processSteps = [
   { title: "2. 方案選擇", text: "依照需求和預算選擇服務層級，並確認交付範圍與時程。" },
   { title: "3. 設計與修正", text: "由專案團隊產出草圖與完善稿，至少提供兩輪細節調整。" },
   { title: "4. 交付與追蹤", text: "製成最終成果檔案，並提供後續發展與品牌延伸建議。" },
-];
-
-const artists = [
-  { name: "Mina Lee", role: "角色設計系統師", note: "擅長可愛少女、日系柔和情感風格與品牌感角色建立。" },
-  { name: "Aoki Chen", role: "聯名創作導師", note: "專長品牌故事視覺、聯名企劃與跨平台風格延伸。" },
-  { name: "Yuna Sato", role: "服裝造型顧問", note: "從服裝、髮型到細節設計，打造更有辨識度的角色輪廓。" },
 ];
 
 export default function HomePage() {
@@ -210,17 +205,8 @@ export default function HomePage() {
               </div>
             </div>
 
-            <div className="grid gap-5 md:grid-cols-3">
-              {artists.map((artist) => (
-                <article key={artist.name} className="rounded-[28px] border border-sky-100 bg-white p-6 shadow-sm">
-                  <div className="mb-4 flex h-14 w-14 items-center justify-center rounded-2xl bg-gradient-to-br from-sky-200 via-cyan-100 to-blue-200 text-xl font-black text-sky-700">
-                    {artist.name.charAt(0)}
-                  </div>
-                  <h3 className="text-xl font-black text-slate-900">{artist.name}</h3>
-                  <p className="mt-2 text-sm font-semibold text-sky-700">{artist.role}</p>
-                  <p className="mt-4 leading-7 text-slate-600">{artist.note}</p>
-                </article>
-              ))}
+            <div className="overflow-hidden rounded-[28px] border border-sky-100 bg-white p-4 shadow-sm sm:p-5">
+              <ArtistMarquee />
             </div>
           </section>
 

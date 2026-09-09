@@ -7,7 +7,26 @@ export const metadata = {
 };
 
 export default async function ArtistLayout({ children }: { children: React.ReactNode }) {
-  const supabase = createServerClient({ cookies });
+  const cookieStore = cookies();
+
+  const supabase = createServerClient(
+    process.env.NEXT_PUBLIC_SUPABASE_URL!,
+    process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!,
+    {
+      cookies: {
+        getAll() {
+          return cookieStore.getAll();
+        },
+        setAll(cookiesToSet: Array<{ name: string; value: string; options?: any }>) {
+          try {
+            cookiesToSet.forEach(({ name, value, options }) => cookieStore.set(name, value, options));
+          } catch {
+            // Called from a Server Component where setting cookies via cookieStore may not be allowed.
+          }
+        },
+      },
+    },
+  );
 
   const {
     data: { user },
