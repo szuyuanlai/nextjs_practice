@@ -1,7 +1,7 @@
 "use client";
 
 import Link from "next/link";
-import React, { useEffect, useMemo, useState } from "react";
+import React, { Suspense, useEffect, useMemo, useState } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import { ArrowLeft, ArrowRight, CheckCircle2, Sparkles, Upload } from "lucide-react";
 import { getSupabaseClient } from "@/src/lib/supabase/client";
@@ -31,7 +31,7 @@ const PERSONALITIES = [
   { id: "cheerful", label: "活潑" },
 ];
 
-export default function NewOrderPage() {
+function NewOrderPageContent() {
   const search = useSearchParams();
   const router = useRouter();
   const initialTier = search.get("tier") ?? "Tier 1 - 三視圖專案";
@@ -491,5 +491,13 @@ export default function NewOrderPage() {
         </div>
       </div>
     </main>
+  );
+}
+
+export default function NewOrderPage() {
+  return (
+    <Suspense fallback={<div className="flex min-h-screen items-center justify-center text-slate-600">載入預約表單中...</div>}>
+      <NewOrderPageContent />
+    </Suspense>
   );
 }

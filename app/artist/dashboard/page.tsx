@@ -84,8 +84,13 @@ export default function ArtistDashboardPage() {
   }, [router]);
 
   const uploadToBucket = async (bucketNames: readonly string[], file: File, path: string) => {
+    const client = supabase;
+    if (!client) {
+      throw new Error("Supabase client is unavailable");
+    }
+
     for (const bucketName of bucketNames) {
-      const { error } = await supabase!.storage.from(bucketName).upload(path, file, { upsert: true });
+      const { error } = await client.storage.from(bucketName).upload(path, file, { upsert: true });
       if (!error) {
         return bucketName;
       }
@@ -202,19 +207,20 @@ export default function ArtistDashboardPage() {
   };
 
   const handleDeletePortfolio = async (item: PortfolioItem) => {
-    if (!supabase || !confirm("確定要刪除此作品？")) {
+    const client = supabase;
+    if (!client || !confirm("確定要刪除此作品？")) {
       return;
     }
 
     try {
-      const { error } = await supabase.from("portfolios").delete().eq("id", item.id);
+      const { error } = await client.from("portfolios").delete().eq("id", item.id);
       if (error) {
         throw new Error(error.message);
       }
 
       if (item.storage_path) {
-        await supabase.storage.from("portfolios").remove([item.storage_path]).catch(() => {
-          void supabase.storage.from("artist-assets").remove([item.storage_path!]).catch(() => undefined);
+        await client.storage.from("portfolios").remove([item.storage_path]).catch(() => {
+          void client.storage.from("artist-assets").remove([item.storage_path!]).catch(() => undefined);
         });
       }
 

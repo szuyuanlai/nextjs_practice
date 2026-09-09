@@ -1,29 +1,78 @@
-import { cookies } from "next/headers";
-import { createServerClient } from "@supabase/ssr";
-import OrderStepper from "@/src/components/OrderStepper";
+"use client";
+
+import { useEffect, useState } from "react";
 import dynamic from "next/dynamic";
+import OrderStepper from "@/src/components/OrderStepper";
+import { supabase } from "@/src/lib/supabase/client";
 import type { Order } from "@/src/types/order";
 
 const PhotoStudioWrapper = dynamic(() => import("@/src/components/PhotoStudioWrapper"), { ssr: false });
 const PODWrapper = dynamic(() => import("@/src/components/PODWrapper"), { ssr: false });
 
-export default async function MyAssetsPage() {
-  const supabase = createServerClient({ cookies });
-  const {
-    data: { user },
-  } = await supabase.auth.getUser();
+export default function MyAssetsPage() {
+  const [orders, setOrders] = useState<Order[]>([]);
+  const [isLoading, setIsLoading] = useState(true);
+  const [isAuthenticated, setIsAuthenticated] = useState(false);
 
-  if (!user) {
+  useEffect(() => {
+    const loadOrders = async () => {
+      if (!supabase) {
+        setIsLoading(false);
+        return;
+      }
+
+      const {
+        data: { user },
+        error,
+      } = await supabase.auth.getUser();
+
+      if (error || !user) {
+        setIsAuthenticated(false);
+        setOrders([]);
+        setIsLoading(false);
+        return;
+      }
+
+      setIsAuthenticated(true);
+
+      const { data, error: fetchError } = await supabase
+        .from("orders")
+        .select("*")
+        .eq("client_id", user.id)
+        .order("created_at", { ascending: false });
+
+      const orderRows = (data as Order[] | null) ?? [];
+
+      if (fetchError) {
+        console.warn("Failed to load my assets:", fetchError.message);
+        setOrders([]);
+      } else {
+        setOrders(orderRows);
+      }
+
+      setIsLoading(false);
+    };
+
+    void loadOrders();
+  }, []);
+
+  const completed = orders.filter((o) => o.status === "completed" || o.status === "delivered");
+
+  if (isLoading) {
+    return (
+      <div className="min-h-screen flex items-center justify-center">
+        <div className="text-slate-600">載入資產中...</div>
+      </div>
+    );
+  }
+
+  if (!isAuthenticated) {
     return (
       <div className="min-h-screen flex items-center justify-center">
         <div className="text-slate-600">請先登入以查看專屬資產。</div>
       </div>
     );
   }
-
-  const { data: orders } = await supabase.from<Order>("orders").select("*").eq("client_id", user.id).order("created_at", { ascending: false });
-
-  const completed = (orders ?? []).filter((o) => o.status === "completed" || o.status === "delivered");
 
   return (
     <main className="max-w-6xl mx-auto p-6">
@@ -54,7 +103,6 @@ export default async function MyAssetsPage() {
                     <OrderStepper status={o.status ?? "draft"} />
                     <div className="flex items-center gap-2">
                       <PhotoStudioWrapper initialOverlay={(o.assets ?? [])[0]?.image_url ?? null} />
-                      {/* PODWrapper is client-side and renders PODModal */}
                       <PODWrapper orderId={o.id} />
                     </div>
                   </div>
@@ -68,7 +116,7 @@ export default async function MyAssetsPage() {
       <section>
         <h2 className="text-xl font-semibold mb-4">近期訂單</h2>
         <div className="space-y-4">
-          {(orders ?? []).map((o) => (
+          {orders.map((o) => (
             <div key={o.id} className="p-4 border rounded">
               <div className="flex items-center justify-between">
                 <div>

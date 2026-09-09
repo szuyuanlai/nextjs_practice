@@ -11,7 +11,7 @@ type Props = {
 };
 
 export default async function ArtistPage({ params }: Props) {
-  const cookieStore = cookies();
+  const cookieStore = await cookies();
   const supabase = createServerClient(
     process.env.NEXT_PUBLIC_SUPABASE_URL!,
     process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!,
@@ -32,10 +32,10 @@ export default async function ArtistPage({ params }: Props) {
   );
 
   const { data: profileData } = await supabase
-    .from<ArtistProfile>("profiles")
+    .from("profiles")
     .select("*")
     .eq("id", params.id)
-    .maybeSingle();
+    .maybeSingle<ArtistProfile>();
 
   if (!profileData) {
     return (
@@ -52,17 +52,18 @@ export default async function ArtistPage({ params }: Props) {
   }
 
   const { data: portfolios } = await supabase
-    .from<PortfolioItem>("portfolios")
+    .from("portfolios")
     .select("*")
     .eq("artist_id", params.id)
     .order("created_at", { ascending: false });
 
   const status = profileData.status ?? "idle";
-  const statusConfig = {
+  const statusConfigMap: Record<string, { label: string; className: string }> = {
     idle: { label: "🟢 可接委託", className: "bg-emerald-50 text-emerald-700 ring-1 ring-emerald-200" },
     busy: { label: "🟡 爆滿中", className: "bg-yellow-50 text-yellow-700 ring-1 ring-yellow-200" },
     closed: { label: "🔴 暫停接單", className: "bg-rose-50 text-rose-700 ring-1 ring-rose-200" },
-  }[status] ?? { label: "🟢 可接委託", className: "bg-emerald-50 text-emerald-700 ring-1 ring-emerald-200" };
+  };
+  const statusConfig = statusConfigMap[status] ?? statusConfigMap.idle;
 
   const portfolioCount = portfolios?.length ?? 0;
   const highlightTags = ["角色設計", "品牌聯名", "人設表現", "可愛系風格"];

@@ -99,8 +99,13 @@ export function Navbar() {
     }
 
     const loadRole = async () => {
+      const client = supabase;
+      if (!client) {
+        return;
+      }
+
       try {
-        const { data: prof } = await supabase
+        const { data: prof } = await client
           .from("profiles")
           .select("role")
           .eq("id", user.id)
