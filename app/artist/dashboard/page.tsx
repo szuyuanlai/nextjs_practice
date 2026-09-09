@@ -37,12 +37,13 @@ export default function ArtistDashboardPage() {
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [profile, setProfile] = useState<ArtistProfile | null>(null);
+  const [user, setUser] = useState<{ id: string } | null>(null);
   const [fullName, setFullName] = useState("");
   const [bio, setBio] = useState("");
   const [status, setStatus] = useState<StatusOption>("idle");
   const [avatarFile, setAvatarFile] = useState<File | null>(null);
   const [portfolioFiles, setPortfolioFiles] = useState<File[]>([]);
-  const [isInternalWork, setIsInternalWork] = useState(false);
+  const [isInternal, setIsInternal] = useState(false);
   const [portfolios, setPortfolios] = useState<PortfolioItem[]>([]);
   const [menuOpenId, setMenuOpenId] = useState<string | null>(null);
   const [toast, setToast] = useState<{ message: string; kind: "success" | "error" } | null>(null);
@@ -73,6 +74,8 @@ export default function ArtistDashboardPage() {
         router.push("/");
         return;
       }
+
+      setUser(user);
 
       const { data: prof, error: profileError } = await supabase
         .from("profiles")
@@ -118,6 +121,7 @@ export default function ArtistDashboardPage() {
         .from("portfolios")
         .select("*")
         .eq("artist_id", user.id)
+        .order("is_pinned", { ascending: false })
         .order("created_at", { ascending: false });
 
       setPortfolios((items as PortfolioItem[]) ?? []);
@@ -198,26 +202,33 @@ export default function ArtistDashboardPage() {
     }
   };
 
-  const fetchPortfolios = async (artistId: string) => {
-    if (!supabase) {
+  const fetchPortfolios = async () => {
+    if (!supabase || !user) {
       return;
     }
 
-    const { data: items } = await supabase
+    const { data, error } = await supabase
       .from("portfolios")
       .select("*")
-      .eq("artist_id", artistId)
+      .eq("artist_id", user.id)
+      .order("is_pinned", { ascending: false })
       .order("created_at", { ascending: false });
 
-    setPortfolios((items as PortfolioItem[]) ?? []);
+    if (error) {
+      console.error("fetchPortfolios error:", error);
+      return;
+    }
+
+    setPortfolios((data as PortfolioItem[]) ?? []);
   };
 
   const handlePortfolioUpload = async () => {
-    if (!portfolioFiles.length || !profile || !supabase) {
+    if (!portfolioFiles.length || !profile || !supabase || !user) {
       return;
     }
 
     setSaving(true);
+
     try {
       const uploaded: PortfolioItem[] = [];
 
@@ -225,38 +236,35 @@ export default function ArtistDashboardPage() {
         const path = `${profile.id}/portfolio-${Date.now()}-${Math.random().toString(16).slice(2)}-${file.name}`;
         const { publicUrl } = await uploadFileToBucket(supabase, PORTFOLIO_BUCKETS, file, path);
 
-        const { data: inserted, error: dbError } = await supabase
+        const { data, error: dbError } = await supabase
           .from("portfolios")
           .insert([
             {
-              artist_id: profile.id,
+              artist_id: user.id,
               image_url: publicUrl,
-              title: file.name.replace(/\.[^/.]+$/, "") || "未命名作品",
-              storage_path: path,
-              is_internal: isInternalWork,
-              is_internal_work: isInternalWork,
+              is_internal: isInternal,
+              is_pinned: false,
             },
           ])
-          .select()
-          .maybeSingle();
+          .select();
 
         if (dbError) {
-          console.error("Database insert failed:", dbError);
+          console.error("上傳失敗詳細原因:", dbError);
+          alert("上傳失敗：" + dbError.message);
           continue;
         }
 
-        if (inserted) {
-          uploaded.push(inserted as PortfolioItem);
-        }
+        console.log("上傳成功，回傳資料:", data);
+        uploaded.push(...((data as PortfolioItem[]) ?? []));
       }
 
       if (uploaded.length > 0 || portfolioFiles.length > 0) {
-        await fetchPortfolios(profile.id);
+        await fetchPortfolios();
         setToast({ message: "作品上傳成功！已同步至作品集。", kind: "success" });
       }
 
       setPortfolioFiles([]);
-      setIsInternalWork(false);
+      setIsInternal(false);
     } catch (error) {
       console.error("Upload portfolio failed:", error);
       alert("作品上傳失敗，請稍後再試。");
@@ -266,18 +274,7 @@ export default function ArtistDashboardPage() {
   };
 
   const refreshPortfolioList = async () => {
-    if (!profile || !supabase) {
-      return;
-    }
-
-    const { data: items } = await supabase
-      .from("portfolios")
-      .select("*")
-      .eq("artist_id", profile.id)
-      .order("is_pinned", { ascending: false })
-      .order("created_at", { ascending: false });
-
-    setPortfolios((items as PortfolioItem[]) ?? []);
+    await fetchPortfolios();
   };
 
   const handleTogglePin = async (item: PortfolioItem) => {
@@ -546,8 +543,8 @@ export default function ArtistDashboardPage() {
               <label className="inline-flex items-center gap-2 rounded-full border border-sky-200 bg-white px-3 py-2 text-sm font-medium text-slate-700">
                 <input
                   type="checkbox"
-                  checked={isInternalWork}
-                  onChange={(event) => setIsInternalWork(event.target.checked)}
+                  checked={isInternal}
+                  onChange={(event) => setIsInternal(event.target.checked)}
                 />
                 內部樣稿 / 非對外展示
               </label>
@@ -592,7 +589,7 @@ export default function ArtistDashboardPage() {
                       </span>
                     ) : null}
 
-                    {item.is_internal ?? item.is_internal_work ? (
+                    {item.is_internal ? (
                       <span className="absolute left-3 top-3 rounded-full bg-slate-950/70 px-2 py-1 text-[10px] font-semibold uppercase tracking-[0.18em] text-white backdrop-blur-sm">
                         Internal
                       </span>
@@ -642,7 +639,7 @@ export default function ArtistDashboardPage() {
 
                     <div className="absolute inset-x-0 bottom-0 z-10 flex items-end justify-between p-4 opacity-0 transition duration-300 group-hover:opacity-100">
                       <div className="rounded-full border border-white/20 bg-black/35 px-3 py-1.5 text-[10px] font-semibold uppercase tracking-[0.18em] text-white backdrop-blur-sm">
-                        {item.is_internal ?? item.is_internal_work ? "內部樣稿" : "公開作品"}
+                        {item.is_internal ? "內部樣稿" : "公開作品"}
                       </div>
                       <button
                         type="button"
@@ -659,7 +656,7 @@ export default function ArtistDashboardPage() {
                       <div>
                         <p className="text-base font-black text-slate-900">{item.title ?? "未命名作品"}</p>
                         <p className="mt-1 text-xs text-slate-500">
-                          {item.is_internal ?? item.is_internal_work ? "內部樣稿" : "公開作品"}
+                          {item.is_internal ? "內部樣稿" : "公開作品"}
                         </p>
                       </div>
                     </div>

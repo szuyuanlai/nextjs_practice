@@ -197,7 +197,7 @@ export default function AccountPage() {
               title: file.name.replace(/\.[^/.]+$/, "") || "未命名作品",
               storage_path: path,
               is_internal: false,
-              is_internal_work: false,
+              is_pinned: false,
             },
           ])
           .select()

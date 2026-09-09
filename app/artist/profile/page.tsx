@@ -148,7 +148,7 @@ export default function ArtistProfilePage() {
             title,
             storage_path: path,
             is_internal: false,
-            is_internal_work: false,
+            is_pinned: false,
           },
         ])
         .select()

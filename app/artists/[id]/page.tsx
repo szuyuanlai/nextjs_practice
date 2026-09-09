@@ -58,7 +58,7 @@ export default async function ArtistPage({ params }: Props) {
     .order("is_pinned", { ascending: false })
     .order("created_at", { ascending: false });
 
-  const publicPortfolios = (portfolios ?? []).filter((item) => !(item.is_internal ?? item.is_internal_work));
+  const publicPortfolios = (portfolios ?? []).filter((item) => !item.is_internal);
 
   const status = profileData.status ?? "idle";
   const statusConfigMap: Record<string, { label: string; className: string }> = {

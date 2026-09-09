@@ -8,7 +8,7 @@ export default function ArtistGallery({ items }: { items: PortfolioItem[] }) {
   const [zoom, setZoom] = useState(1);
 
   const publicItems = useMemo(
-    () => items.filter((item) => !(item.is_internal ?? item.is_internal_work)),
+    () => items.filter((item) => !item.is_internal),
     [items],
   );
 
