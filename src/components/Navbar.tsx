@@ -250,15 +250,6 @@ export function Navbar() {
 
                 {isMenuOpen ? (
                   <div className="absolute right-0 top-[calc(100%+0.75rem)] w-60 overflow-hidden rounded-2xl border border-sky-100 bg-white p-2 shadow-xl shadow-sky-100">
-                    <Link
-                      href="/profile"
-                      className="flex items-center gap-2 rounded-xl px-3 py-2 text-sm font-medium text-slate-700 transition hover:bg-sky-50"
-                      onClick={() => setIsMenuOpen(false)}
-                    >
-                      <UserRound className="h-4 w-4" />
-                      編輯個人資料
-                    </Link>
-
                     {normalizedRole === "ARTIST" || normalizedRole === "ADMIN" ? (
                       <Link
                         href="/artist/dashboard"
@@ -267,26 +258,6 @@ export function Navbar() {
                       >
                         <UserRound className="h-4 w-4" />
                         繪師後台
-                      </Link>
-                    ) : (
-                      <Link
-                        href="/dashboard/my-assets"
-                        className="flex items-center gap-2 rounded-xl px-3 py-2 text-sm font-medium text-sky-700 transition hover:bg-sky-50"
-                        onClick={() => setIsMenuOpen(false)}
-                      >
-                        <UserRound className="h-4 w-4" />
-                        我的資產
-                      </Link>
-                    )}
-
-                    {normalizedRole === "ADMIN" ? (
-                      <Link
-                        href="/admin/dashboard"
-                        className="flex items-center gap-2 rounded-xl px-3 py-2 text-sm font-medium text-slate-700 transition hover:bg-sky-50"
-                        onClick={() => setIsMenuOpen(false)}
-                      >
-                        <UserRound className="h-4 w-4" />
-                        🛡️ 管理後台
                       </Link>
                     ) : null}
 
