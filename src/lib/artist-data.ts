@@ -1,6 +1,7 @@
 export type ArtistProfileRecord = {
   id: string;
   full_name?: string | null;
+  display_name?: string | null;
   avatar_url?: string | null;
   bio?: string | null;
   role?: string | null;
@@ -16,8 +17,8 @@ export type ArtistPortfolioPreview = {
 export async function fetchArtistSpotlights(supabase: any) {
   const { data: profiles, error } = await supabase
     .from("profiles")
-    .select("id, full_name, avatar_url, bio, status, role")
-    .in("role", ["artist", "admin"])
+    .select("id, full_name, display_name, avatar_url, bio, status, role")
+    .in("role", ["ARTIST", "ADMIN"])
     .order("full_name", { ascending: true });
 
   if (error) {

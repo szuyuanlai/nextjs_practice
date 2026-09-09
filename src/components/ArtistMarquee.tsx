@@ -9,10 +9,21 @@ import { fetchArtistSpotlights } from "@/src/lib/artist-data";
 type ArtistSpotlight = {
   id: string;
   full_name?: string | null;
+  display_name?: string | null;
   avatar_url?: string | null;
   bio?: string | null;
-  status?: "idle" | "busy" | "closed" | null;
+  status?: "idle" | "busy" | "closed" | string | null;
   role?: string | null;
+};
+
+const normalizeArtistStatus = (status?: string | null) => {
+  const value = (status ?? "").toLowerCase();
+
+  if (["idle", "available", "open", "free"].includes(value)) return "idle";
+  if (["busy", "full", "booked", "occupied"].includes(value)) return "busy";
+  if (["closed", "paused", "unavailable"].includes(value)) return "closed";
+
+  return "idle";
 };
 
 export function ArtistMarquee() {
@@ -28,17 +39,28 @@ export function ArtistMarquee() {
       }
 
       try {
+        setIsLoadingArtists(true);
         const artistsData = await fetchArtistSpotlights(supabase);
         setArtists((artistsData ?? []) as ArtistSpotlight[]);
       } catch (error) {
         console.warn("Failed to load artist profiles:", error);
         setArtists([]);
+      } finally {
+        setIsLoadingArtists(false);
       }
-
-      setIsLoadingArtists(false);
     };
 
     void loadArtists();
+
+    const handleProfileUpdate = () => {
+      void loadArtists();
+    };
+
+    window.addEventListener("artist-profile-updated", handleProfileUpdate);
+
+    return () => {
+      window.removeEventListener("artist-profile-updated", handleProfileUpdate);
+    };
   }, []);
 
   const marqueeArtists = artists.length > 0 ? [...artists, ...artists] : [];
@@ -65,10 +87,12 @@ export function ArtistMarquee() {
     <div className="group relative">
       <div className="animate-marquee flex min-w-max gap-4 group-hover:[animation-play-state:paused]">
         {marqueeArtists.map((artist, index) => {
+          const artistName = artist.display_name ?? artist.full_name ?? "聯名畫師";
+          const normalizedStatus = normalizeArtistStatus(artist.status);
           const statusLabel =
-            artist.status === "idle"
+            normalizedStatus === "idle"
               ? "🟢 可接委託"
-              : artist.status === "busy"
+              : normalizedStatus === "busy"
                 ? "🟡 爆滿中"
                 : "🔴 暫停接單";
 
@@ -81,16 +105,16 @@ export function ArtistMarquee() {
                 <div className="h-12 w-12 overflow-hidden rounded-full border border-sky-200 bg-white">
                   {artist.avatar_url ? (
                     // eslint-disable-next-line @next/next/no-img-element
-                    <img src={artist.avatar_url} alt={artist.full_name ?? "artist avatar"} className="h-full w-full object-cover" />
+                    <img src={artist.avatar_url} alt={artistName} className="h-full w-full object-cover" />
                   ) : (
                     <div className="flex h-full w-full items-center justify-center bg-sky-100 text-sm font-black text-sky-700">
-                      {(artist.full_name ?? "A").charAt(0).toUpperCase()}
+                      {(artistName ?? "A").charAt(0).toUpperCase()}
                     </div>
                   )}
                 </div>
                 <div className="min-w-0 flex-1">
-                  <h3 className="truncate text-lg font-black text-slate-900">{artist.full_name ?? "聯名畫師"}</h3>
-                  <p className="text-xs font-semibold text-sky-700">{artist.role === "admin" ? "品牌管理者" : "聯名畫師"}</p>
+                  <h3 className="truncate text-lg font-black text-slate-900">{artistName}</h3>
+                  <p className="text-xs font-semibold text-sky-700">{artist.role?.toUpperCase() === "ADMIN" ? "品牌管理者" : "聯名畫師"}</p>
                 </div>
               </div>
 

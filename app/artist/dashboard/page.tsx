@@ -133,6 +133,7 @@ export default function ArtistDashboardPage() {
 
       setProfile((current) => ({ ...(current ?? profile), avatar_url: publicUrl }));
       setAvatarFile(null);
+      window.dispatchEvent(new CustomEvent("artist-profile-updated"));
     } catch (error) {
       console.error("Upload avatar failed:", error);
       alert("大頭貼更新失敗，請稍後再試。");
@@ -146,12 +147,14 @@ export default function ArtistDashboardPage() {
       return;
     }
 
+    const nextDisplayName = fullName.trim();
+
     setSaving(true);
     try {
       const { error } = await supabase
         .from("profiles")
         .update({
-          full_name: fullName.trim(),
+          full_name: nextDisplayName || null,
           bio,
           status,
         })
@@ -161,7 +164,17 @@ export default function ArtistDashboardPage() {
         throw new Error(error.message);
       }
 
-      setProfile({ ...profile, full_name: fullName.trim(), bio, status });
+      setProfile({
+        ...profile,
+        full_name: nextDisplayName || null,
+        display_name: nextDisplayName || null,
+        bio,
+        status,
+      });
+
+      window.dispatchEvent(new CustomEvent("artist-profile-updated"));
+      alert("儲存成功！個人資料已同步更新。");
+      router.refresh();
     } catch (error) {
       console.error("Save profile failed:", error);
       alert("儲存失敗，請稍後再試。");
