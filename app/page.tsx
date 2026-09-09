@@ -52,14 +52,15 @@ export default function HomePage() {
             <div className="space-y-6">
               <div className="inline-flex items-center gap-2 rounded-full border border-sky-200 bg-sky-50 px-3 py-1.5 text-[11px] font-semibold uppercase tracking-[0.2em] text-sky-700">
                 <span className="h-2 w-2 rounded-full bg-sky-500" />
-                角色設計與品牌聯名工作室
+                角色設計工作室
               </div>
 
               <div className="space-y-4">
                 <h1 className="text-4xl font-black tracking-tight text-slate-900 sm:text-5xl lg:text-6xl">
-                  讓你的 <span className="bg-gradient-to-r from-sky-500 via-cyan-500 to-blue-600 bg-clip-text text-transparent">品牌與角色</span>
-                  <br />
-                  變得更有辨識度
+                  設計出專屬於你的 <br />
+                  <span className="bg-gradient-to-r from-sky-500 via-cyan-500 to-blue-600 bg-clip-text text-transparent">二次元角色</span>
+                  
+                  
                 </h1>
 
                 <p className="max-w-xl text-lg leading-8 text-slate-600">
@@ -126,47 +127,57 @@ export default function HomePage() {
                 <article
                   key={plan.title}
                   className={[
-                    "rounded-[28px] border p-6 shadow-sm transition hover:-translate-y-1 hover:shadow-lg",
+                    "relative rounded-[28px] border p-6 shadow-sm transition hover:-translate-y-1 hover:shadow-lg",
                     plan.highlight
-                      ? "border-sky-300 bg-gradient-to-b from-sky-500 to-blue-600 text-white shadow-sky-200"
+                      ? "border-sky-200 bg-white text-slate-700 shadow-[0_0_0_1px_rgba(125,211,252,0.4),0_0_30px_rgba(59,130,246,0.18),0_20px_40px_rgba(59,130,246,0.08)]"
                       : "border-sky-100 bg-white text-slate-700",
                   ].join(" ")}
                 >
-                  <div className="mb-5 flex items-center justify-between gap-3">
-                    <h3 className="text-2xl font-black">{plan.title}</h3>
-                    {plan.highlight ? <span className="rounded-full bg-white/15 px-3 py-1 text-xs font-semibold">熱門</span> : null}
-                  </div>
+                  {plan.highlight ? (
+                    <div className="pointer-events-none absolute inset-0 rounded-[28px] bg-[radial-gradient(circle_at_top,_rgba(125,211,252,0.38),_rgba(96,165,250,0.18)_25%,_transparent_60%)]" />
+                  ) : null}
 
-                  <div className="mb-5 text-3xl font-black">{plan.price}</div>
-                  <p className={plan.highlight ? "text-sky-50" : "text-slate-600"}>{plan.description}</p>
-
-                  <ul className="mt-6 space-y-3">
-                    {plan.features.map((feature) => (
-                      <li key={feature} className="flex items-center gap-3">
-                        <span
-                          className={[
-                            "flex h-6 w-6 items-center justify-center rounded-full text-xs font-bold",
-                            plan.highlight ? "bg-white/15 text-white" : "bg-sky-100 text-sky-700",
-                          ].join(" ")}
-                        >
-                          ✓
+                  <div className="relative z-10">
+                    <div className="mb-5 flex items-center justify-between gap-3">
+                      <h3 className="text-2xl font-black">{plan.title}</h3>
+                      {plan.highlight ? (
+                        <span className="rounded-full bg-gradient-to-r from-sky-500 to-blue-600 px-3 py-1 text-xs font-semibold text-white shadow-md shadow-sky-500/30">
+                          熱門
                         </span>
-                        <span>{feature}</span>
-                      </li>
-                    ))}
-                  </ul>
+                      ) : null}
+                    </div>
 
-                  <Link
-                    href="#order-form"
-                    className={[
-                      "mt-7 inline-flex items-center gap-2 rounded-full px-4 py-2.5 font-semibold",
-                      plan.highlight
-                        ? "bg-white text-sky-700 hover:bg-sky-50"
-                        : "bg-sky-50 text-sky-700 hover:bg-sky-100",
-                    ].join(" ")}
-                  >
-                    選擇方案 <ArrowRight className="h-4 w-4" />
-                  </Link>
+                    <div className="mb-5 text-3xl font-black">{plan.price}</div>
+                    <p className={plan.highlight ? "text-slate-600" : "text-slate-600"}>{plan.description}</p>
+
+                    <ul className="mt-6 space-y-3">
+                      {plan.features.map((feature) => (
+                        <li key={feature} className="flex items-center gap-3">
+                          <span
+                            className={[
+                              "flex h-6 w-6 items-center justify-center rounded-full text-xs font-bold",
+                              plan.highlight ? "bg-gradient-to-r from-sky-100 to-blue-100 text-sky-700" : "bg-sky-100 text-sky-700",
+                            ].join(" ")}
+                          >
+                            ✓
+                          </span>
+                          <span>{feature}</span>
+                        </li>
+                      ))}
+                    </ul>
+
+                    <Link
+                      href="#order-form"
+                      className={[
+                        "mt-7 inline-flex items-center gap-2 rounded-full px-4 py-2.5 font-semibold shadow-md transition",
+                        plan.highlight
+                          ? "bg-gradient-to-r from-sky-500 via-cyan-500 to-blue-600 text-white shadow-sky-500/30 hover:brightness-110"
+                          : "bg-sky-50 text-sky-700 hover:bg-sky-100",
+                      ].join(" ")}
+                    >
+                      選擇方案 <ArrowRight className="h-4 w-4" />
+                    </Link>
+                  </div>
                 </article>
               ))}
             </div>

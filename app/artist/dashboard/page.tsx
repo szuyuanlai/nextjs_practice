@@ -46,6 +46,8 @@ export default function ArtistDashboardPage() {
   const [isInternal, setIsInternal] = useState(false);
   const [portfolios, setPortfolios] = useState<PortfolioItem[]>([]);
   const [menuOpenId, setMenuOpenId] = useState<string | null>(null);
+  const [editingPortfolio, setEditingPortfolio] = useState<{ id: string; title: string } | null>(null);
+  const [newTitleInput, setNewTitleInput] = useState("");
   const [toast, setToast] = useState<{ message: string; kind: "success" | "error" } | null>(null);
 
   useEffect(() => {
@@ -282,11 +284,13 @@ export default function ArtistDashboardPage() {
       return;
     }
 
-    const pinnedCount = portfolios.filter((portfolio) => portfolio.is_pinned).length;
-    if (!item.is_pinned && pinnedCount >= 3) {
-      alert("最多只能置頂 3 張作品，請先取消其他置頂");
-      setMenuOpenId(null);
-      return;
+    if (!item.is_pinned) {
+      const pinnedCount = portfolios.filter((portfolio) => portfolio.is_pinned).length;
+      if (pinnedCount >= 3) {
+        alert("最多只能置頂 3 張作品，請先取消其他置頂");
+        setMenuOpenId(null);
+        return;
+      }
     }
 
     try {
@@ -308,35 +312,22 @@ export default function ArtistDashboardPage() {
     }
   };
 
-  const handleEditPortfolioTitle = async (item: PortfolioItem) => {
-    if (!supabase) {
+  const handleSaveTitle = async () => {
+    if (!supabase || !editingPortfolio) {
       return;
     }
 
-    const nextTitle = window.prompt("請輸入作品名稱", item.title ?? "");
-    if (nextTitle === null) {
-      setMenuOpenId(null);
-      return;
-    }
+    const { error } = await supabase
+      .from("portfolios")
+      .update({ title: newTitleInput.trim() })
+      .eq("id", editingPortfolio.id);
 
-    const trimmedTitle = nextTitle.trim();
-
-    try {
-      const { error } = await supabase
-        .from("portfolios")
-        .update({ title: trimmedTitle || "未命名作品" })
-        .eq("id", item.id);
-
-      if (error) {
-        throw new Error(error.message);
-      }
-
-      await refreshPortfolioList();
-      setMenuOpenId(null);
+    if (!error) {
+      setEditingPortfolio(null);
+      await fetchPortfolios();
       setToast({ message: "作品名稱已更新。", kind: "success" });
-    } catch (error) {
-      console.error("Edit portfolio title failed:", error);
-      alert("修改作品名稱失敗，請稍後再試。");
+    } else {
+      alert("修改失敗：" + error.message);
     }
   };
 
@@ -583,10 +574,15 @@ export default function ArtistDashboardPage() {
                     <div className="absolute inset-0 bg-gradient-to-t from-slate-950/80 via-slate-900/15 to-transparent opacity-0 transition duration-300 group-hover:opacity-100" />
 
                     {item.is_pinned ? (
-                      <span className="absolute right-3 top-3 inline-flex items-center gap-1 rounded-full bg-amber-300 px-2.5 py-1 text-[10px] font-bold uppercase tracking-[0.18em] text-amber-950 shadow-sm">
-                        <Pin className="h-3 w-3" />
-                        置頂
-                      </span>
+                      <button
+                        type="button"
+                        onClick={() => void handleTogglePin(item)}
+                        className="absolute left-3 top-3 z-20 inline-flex items-center justify-center rounded-full border border-slate-200 bg-white/95 p-2 text-slate-700 shadow-md transition hover:bg-slate-50"
+                        aria-label="取消置頂"
+                        title="取消置頂"
+                      >
+                        <Pin className="h-4 w-4" />
+                      </button>
                     ) : null}
 
                     {item.is_internal ? (
@@ -610,11 +606,15 @@ export default function ArtistDashboardPage() {
                           <div className="absolute right-0 top-11 z-20 w-44 overflow-hidden rounded-2xl border border-slate-200 bg-white p-1.5 shadow-[0_20px_50px_rgba(15,23,42,0.18)]">
                             <button
                               type="button"
-                              onClick={() => handleEditPortfolioTitle(item)}
+                              onClick={() => {
+                                setEditingPortfolio({ id: item.id, title: item.title ?? "" });
+                                setNewTitleInput(item.title ?? "");
+                                setMenuOpenId(null);
+                              }}
                               className="flex w-full items-center gap-2 rounded-xl px-3 py-2 text-left text-sm font-medium text-slate-700 transition hover:bg-sky-50"
                             >
                               <Edit3 className="h-4 w-4" />
-                              編輯
+                              編輯作品名稱
                             </button>
                             <button
                               type="button"
@@ -622,7 +622,7 @@ export default function ArtistDashboardPage() {
                               className="flex w-full items-center gap-2 rounded-xl px-3 py-2 text-left text-sm font-medium text-slate-700 transition hover:bg-sky-50"
                             >
                               {item.is_pinned ? <PinOff className="h-4 w-4" /> : <Pin className="h-4 w-4" />}
-                              {item.is_pinned ? "取消置頂" : "置頂"}
+                              {item.is_pinned ? "📌 取消置頂" : "📌 置頂"}
                             </button>
                             <button
                               type="button"
@@ -654,7 +654,7 @@ export default function ArtistDashboardPage() {
                   <div className="space-y-3 p-4">
                     <div className="flex items-start justify-between gap-3">
                       <div>
-                        <p className="text-base font-black text-slate-900">{item.title ?? "未命名作品"}</p>
+                        <h3 className="text-base font-black text-slate-900">{item.title || "未命名作品"}</h3>
                         <p className="mt-1 text-xs text-slate-500">
                           {item.is_internal ? "內部樣稿" : "公開作品"}
                         </p>
@@ -667,6 +667,38 @@ export default function ArtistDashboardPage() {
           )}
         </section>
       </div>
+
+      {editingPortfolio && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50">
+          <div className="w-80 space-y-4 rounded-xl bg-white p-6 shadow-lg">
+            <h3 className="text-lg font-bold">編輯作品名稱</h3>
+            <input
+              type="text"
+              value={newTitleInput}
+              onChange={(event) => setNewTitleInput(event.target.value)}
+              className="w-full rounded-lg border px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500"
+              placeholder="輸入作品名稱"
+              autoFocus
+            />
+            <div className="flex justify-end gap-2">
+              <button
+                type="button"
+                onClick={() => setEditingPortfolio(null)}
+                className="rounded-lg bg-gray-100 px-4 py-2 text-sm text-gray-600 hover:bg-gray-200"
+              >
+                取消
+              </button>
+              <button
+                type="button"
+                onClick={() => void handleSaveTitle()}
+                className="rounded-lg bg-blue-600 px-4 py-2 text-sm text-white hover:bg-blue-700"
+              >
+                儲存
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </main>
   );
 }
