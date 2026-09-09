@@ -57,6 +57,8 @@ export default async function ArtistPage({ params }: Props) {
     .eq("artist_id", params.id)
     .order("created_at", { ascending: false });
 
+  const publicPortfolios = (portfolios ?? []).filter((item) => !(item.is_internal ?? item.is_internal_work));
+
   const status = profileData.status ?? "idle";
   const statusConfigMap: Record<string, { label: string; className: string }> = {
     idle: { label: "🟢 可接委託", className: "bg-emerald-50 text-emerald-700 ring-1 ring-emerald-200" },
@@ -164,7 +166,7 @@ export default async function ArtistPage({ params }: Props) {
             </div>
           </div>
 
-          <ArtistGallery items={portfolios ?? []} />
+          <ArtistGallery items={publicPortfolios} />
         </section>
 
         <section id="pricing" className="mb-10 rounded-[30px] border border-sky-100 bg-white p-6 shadow-[0_20px_80px_rgba(14,116,144,0.05)] sm:p-8">

@@ -27,8 +27,12 @@ CREATE TABLE IF NOT EXISTS public.portfolios (
   title text,
   image_url text NOT NULL,
   storage_path text,
+  is_internal boolean NOT NULL DEFAULT false,
   created_at timestamptz DEFAULT now()
 );
+
+ALTER TABLE public.portfolios
+  ADD COLUMN IF NOT EXISTS is_internal boolean DEFAULT false;
 
 -- 4) Enable Row Level Security
 ALTER TABLE public.portfolios ENABLE ROW LEVEL SECURITY;

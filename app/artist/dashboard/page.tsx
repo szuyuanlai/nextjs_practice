@@ -203,6 +203,7 @@ export default function ArtistDashboardPage() {
             image_url: publicUrl,
             title: file.name.replace(/\.[^/.]+$/, "") || "未命名作品",
             storage_path: path,
+            is_internal: isInternalWork,
             is_internal_work: isInternalWork,
           })
           .select()
@@ -442,7 +443,7 @@ export default function ArtistDashboardPage() {
                       {/* eslint-disable-next-line @next/next/no-img-element */}
                       <img src={item.image_url} alt={item.title ?? "portfolio image"} className="h-full w-full object-cover" />
                     </>
-                    {item.is_internal_work ? (
+                    {item.is_internal ?? item.is_internal_work ? (
                       <span className="absolute left-3 top-3 rounded-full bg-slate-900/75 px-2 py-1 text-[10px] font-semibold uppercase tracking-[0.18em] text-white">
                         Internal
                       </span>
@@ -454,7 +455,7 @@ export default function ArtistDashboardPage() {
                       <div>
                         <p className="text-base font-black text-slate-900">{item.title ?? "未命名作品"}</p>
                         <p className="text-xs text-slate-500">
-                          {item.is_internal_work ? "內部樣稿" : "公開作品"}
+                          {item.is_internal ?? item.is_internal_work ? "內部樣稿" : "公開作品"}
                         </p>
                       </div>
 

@@ -14,6 +14,7 @@ export type PortfolioItem = {
   title?: string | null;
   image_url: string;
   storage_path?: string | null;
+  is_internal?: boolean | null;
   is_internal_work?: boolean | null;
   created_at?: string | null;
 };
