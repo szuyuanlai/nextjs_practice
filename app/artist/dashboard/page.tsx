@@ -15,6 +15,7 @@ import {
   UserCircle2,
 } from "lucide-react";
 import { supabase } from "@/src/lib/supabase/client";
+import { uploadFileToBucket } from "@/src/lib/artist-data";
 import type { ArtistProfile, PortfolioItem } from "@/src/types/artist";
 
 type StatusOption = "idle" | "busy" | "closed";
@@ -58,9 +59,10 @@ export default function ArtistDashboardPage() {
         .maybeSingle();
 
       const profileData = prof as ArtistProfile | null;
-      const role = profileData?.role ?? null;
+      const role = (profileData?.role ?? user.user_metadata?.role ?? "CLIENT").toString().toUpperCase();
 
-      if (role !== "artist" && role !== "admin") {
+      if (role !== "ARTIST" && role !== "ADMIN") {
+        alert("您沒有權限訪問繪師後台");
         router.push("/");
         return;
       }
@@ -83,21 +85,6 @@ export default function ArtistDashboardPage() {
     void load();
   }, [router]);
 
-  const uploadToBucket = async (bucketNames: readonly string[], file: File, path: string) => {
-    const client = supabase;
-    if (!client) {
-      throw new Error("Supabase client is unavailable");
-    }
-
-    for (const bucketName of bucketNames) {
-      const { error } = await client.storage.from(bucketName).upload(path, file, { upsert: true });
-      if (!error) {
-        return bucketName;
-      }
-    }
-    throw new Error("Storage bucket unavailable");
-  };
-
   const handleAvatarUpload = async () => {
     if (!avatarFile || !profile || !supabase) {
       return;
@@ -106,9 +93,7 @@ export default function ArtistDashboardPage() {
     setSaving(true);
     try {
       const path = `${profile.id}/avatar-${Date.now()}-${avatarFile.name}`;
-      const bucketName = await uploadToBucket(STORAGE_FALLBACKS, avatarFile, path);
-      const { data: publicData } = supabase.storage.from(bucketName).getPublicUrl(path);
-      const publicUrl = publicData.publicUrl;
+      const { publicUrl } = await uploadFileToBucket(supabase, STORAGE_FALLBACKS, avatarFile, path);
 
       const { error } = await supabase
         .from("profiles")
@@ -169,9 +154,7 @@ export default function ArtistDashboardPage() {
 
       for (const file of portfolioFiles) {
         const path = `${profile.id}/portfolio-${Date.now()}-${Math.random().toString(16).slice(2)}-${file.name}`;
-        const bucketName = await uploadToBucket(PORTFOLIO_BUCKETS, file, path);
-        const { data: publicData } = supabase.storage.from(bucketName).getPublicUrl(path);
-        const publicUrl = publicData.publicUrl;
+        const { publicUrl } = await uploadFileToBucket(supabase, PORTFOLIO_BUCKETS, file, path);
 
         const { data: inserted, error: insertError } = await supabase
           .from("portfolios")

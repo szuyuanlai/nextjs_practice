@@ -4,6 +4,7 @@ import Link from "next/link";
 import { useEffect, useState } from "react";
 import { ArrowRight } from "lucide-react";
 import { supabase } from "@/src/lib/supabase/client";
+import { fetchArtistSpotlights } from "@/src/lib/artist-data";
 
 type ArtistSpotlight = {
   id: string;
@@ -26,17 +27,12 @@ export function ArtistMarquee() {
         return;
       }
 
-      const { data, error } = await supabase
-        .from("profiles")
-        .select("id, full_name, avatar_url, bio, status, role")
-        .in("role", ["artist", "admin"])
-        .order("full_name", { ascending: true });
-
-      if (error) {
-        console.warn("Failed to load artist profiles:", error.message);
+      try {
+        const artistsData = await fetchArtistSpotlights(supabase);
+        setArtists((artistsData ?? []) as ArtistSpotlight[]);
+      } catch (error) {
+        console.warn("Failed to load artist profiles:", error);
         setArtists([]);
-      } else {
-        setArtists((data ?? []) as ArtistSpotlight[]);
       }
 
       setIsLoadingArtists(false);

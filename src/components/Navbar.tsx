@@ -19,6 +19,15 @@ type ProfileRoleRow = {
   role?: string | null;
 };
 
+function normalizeRole(value?: string | null) {
+  if (!value) return "CLIENT";
+  const normalized = value.toUpperCase();
+  if (normalized === "ARTIST" || normalized === "ADMIN" || normalized === "CLIENT") {
+    return normalized;
+  }
+  return "CLIENT";
+}
+
 export function Navbar() {
   const menuRef = useRef<HTMLDivElement | null>(null);
   const [user, setUser] = useState<User | null>(null);
@@ -111,9 +120,11 @@ export function Navbar() {
           .eq("id", user.id)
           .maybeSingle<ProfileRoleRow>();
 
-        setRole((prof?.role as string | null | undefined) ?? null);
+        const profileRole = (prof?.role as string | null | undefined) ?? user.user_metadata?.role ?? "CLIENT";
+        setRole(normalizeRole(profileRole));
       } catch (e) {
         console.warn("failed to fetch profile role", e);
+        setRole(normalizeRole(user.user_metadata?.role ?? "CLIENT"));
       }
     };
 
@@ -178,6 +189,9 @@ export function Navbar() {
     (user?.user_metadata?.name as string | undefined) ??
     user?.email?.split("@")[0] ??
     "Guest";
+  const normalizedRole = normalizeRole(role);
+  const dashboardActionUrl = normalizedRole === "ARTIST" || normalizedRole === "ADMIN" ? "/artist/dashboard" : "/dashboard/my-assets";
+  const dashboardActionLabel = normalizedRole === "ARTIST" || normalizedRole === "ADMIN" ? "🎨 繪師專屬後台" : "📦 我的資產";
 
   return (
     <>
@@ -235,57 +249,45 @@ export function Navbar() {
                 </button>
 
                 {isMenuOpen ? (
-                  <div className="absolute right-0 top-[calc(100%+0.75rem)] w-52 overflow-hidden rounded-2xl border border-sky-100 bg-white p-2 shadow-xl shadow-sky-100">
+                  <div className="absolute right-0 top-[calc(100%+0.75rem)] w-60 overflow-hidden rounded-2xl border border-sky-100 bg-white p-2 shadow-xl shadow-sky-100">
                     <Link
-                      href="/account"
+                      href="/profile"
                       className="flex items-center gap-2 rounded-xl px-3 py-2 text-sm font-medium text-slate-700 transition hover:bg-sky-50"
                       onClick={() => setIsMenuOpen(false)}
                     >
                       <UserRound className="h-4 w-4" />
-                      帳號資訊
+                      ⚙️ 編輯個人資料
                     </Link>
 
-                    {/* Role-aware links for artist/admin */}
-                    {role === 'artist' ? (
-                      <>
-                        <Link
-                          href="/artist/dashboard"
-                          className="flex items-center gap-2 rounded-xl px-3 py-2 text-sm font-medium text-slate-700 transition hover:bg-sky-50"
-                          onClick={() => setIsMenuOpen(false)}
-                        >
-                          <UserRound className="h-4 w-4" />
-                          繪師後台
-                        </Link>
-                        <Link
-                          href="/artist/profile"
-                          className="flex items-center gap-2 rounded-xl px-3 py-2 text-sm font-medium text-slate-700 transition hover:bg-sky-50"
-                          onClick={() => setIsMenuOpen(false)}
-                        >
-                          <UserRound className="h-4 w-4" />
-                          編輯個人檔案
-                        </Link>
-                      </>
-                    ) : null}
+                    {normalizedRole === "ARTIST" || normalizedRole === "ADMIN" ? (
+                      <Link
+                        href="/artist/dashboard"
+                        className="flex items-center gap-2 rounded-xl px-3 py-2 text-sm font-medium text-sky-700 transition hover:bg-sky-50"
+                        onClick={() => setIsMenuOpen(false)}
+                      >
+                        <UserRound className="h-4 w-4" />
+                        🎨 繪師後台
+                      </Link>
+                    ) : (
+                      <Link
+                        href="/dashboard/my-assets"
+                        className="flex items-center gap-2 rounded-xl px-3 py-2 text-sm font-medium text-sky-700 transition hover:bg-sky-50"
+                        onClick={() => setIsMenuOpen(false)}
+                      >
+                        <UserRound className="h-4 w-4" />
+                        📦 我的資產
+                      </Link>
+                    )}
 
-                    {role === 'admin' ? (
-                      <>
-                        <Link
-                          href="/admin/dashboard"
-                          className="flex items-center gap-2 rounded-xl px-3 py-2 text-sm font-medium text-slate-700 transition hover:bg-sky-50"
-                          onClick={() => setIsMenuOpen(false)}
-                        >
-                          <UserRound className="h-4 w-4" />
-                          管理後台
-                        </Link>
-                        <Link
-                          href="/artist/profile"
-                          className="flex items-center gap-2 rounded-xl px-3 py-2 text-sm font-medium text-slate-700 transition hover:bg-sky-50"
-                          onClick={() => setIsMenuOpen(false)}
-                        >
-                          <UserRound className="h-4 w-4" />
-                          編輯個人檔案
-                        </Link>
-                      </>
+                    {normalizedRole === "ADMIN" ? (
+                      <Link
+                        href="/admin/dashboard"
+                        className="flex items-center gap-2 rounded-xl px-3 py-2 text-sm font-medium text-slate-700 transition hover:bg-sky-50"
+                        onClick={() => setIsMenuOpen(false)}
+                      >
+                        <UserRound className="h-4 w-4" />
+                        🛡️ 管理後台
+                      </Link>
                     ) : null}
 
                     <button
@@ -303,7 +305,7 @@ export function Navbar() {
                       className="mt-1 flex w-full items-center gap-2 rounded-xl bg-slate-900 px-3 py-2 text-left text-sm font-medium text-white transition hover:bg-slate-700"
                     >
                       <LogOut className="h-4 w-4" />
-                      Sign Out
+                      登出
                     </button>
                   </div>
                 ) : null}
