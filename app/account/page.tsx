@@ -163,6 +163,20 @@ export default function AccountPage() {
     }
   };
 
+  const fetchPortfolios = async (artistId: string) => {
+    if (!supabase) {
+      return;
+    }
+
+    const { data: items } = await supabase
+      .from("portfolios")
+      .select("*")
+      .eq("artist_id", artistId)
+      .order("created_at", { ascending: false });
+
+    setPortfolios((items as PortfolioItem[]) ?? []);
+  };
+
   const handlePortfolioUpload = async () => {
     if (!supabase || !profile || !portfolioFiles.length) return;
 
@@ -174,20 +188,23 @@ export default function AccountPage() {
         const path = `${profile.id ?? user?.id}/portfolio-${Date.now()}-${Math.random().toString(16).slice(2)}-${file.name}`;
         const { publicUrl } = await uploadFileToBucket(supabase, PORTFOLIO_BUCKETS, file, path);
 
-        const { data: inserted, error: insertError } = await supabase
+        const { data: inserted, error: dbError } = await supabase
           .from("portfolios")
-          .insert({
-            artist_id: profile.id ?? user!.id,
-            image_url: publicUrl,
-            title: file.name.replace(/\.[^/.]+$/, "") || "未命名作品",
-            storage_path: path,
-            is_internal_work: false,
-          })
+          .insert([
+            {
+              artist_id: profile.id ?? user!.id,
+              image_url: publicUrl,
+              title: file.name.replace(/\.[^/.]+$/, "") || "未命名作品",
+              storage_path: path,
+              is_internal: false,
+              is_internal_work: false,
+            },
+          ])
           .select()
           .maybeSingle();
 
-        if (insertError) {
-          console.error("Portfolio insert failed:", insertError.message);
+        if (dbError) {
+          console.error("Database insert failed:", dbError);
           continue;
         }
 
@@ -196,7 +213,10 @@ export default function AccountPage() {
         }
       }
 
-      setPortfolios((current) => [...uploaded, ...current]);
+      if (uploaded.length > 0 || portfolioFiles.length > 0) {
+        await fetchPortfolios(profile.id ?? user!.id);
+      }
+
       setPortfolioFiles([]);
     } catch (error) {
       console.error("Upload portfolio failed:", error);

@@ -104,6 +104,20 @@ export default function ArtistProfilePage() {
     console.log("已儲存");
   };
 
+  const fetchPortfolios = async (artistId: string) => {
+    if (!supabase) {
+      return;
+    }
+
+    const { data: items } = await supabase
+      .from("portfolios")
+      .select("*")
+      .eq("artist_id", artistId)
+      .order("created_at", { ascending: false });
+
+    setPortfolios((items as PortfolioItem[]) ?? []);
+  };
+
   const handlePortfolioFiles = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const files = e.target.files;
     if (!files || !profile || !supabase) return;
@@ -125,21 +139,30 @@ export default function ArtistProfilePage() {
       const publicUrl = publicData.publicUrl;
 
       const title = file.name.replace(/\.[^/.]+$/, "");
-      const { data: insData, error: insErr } = await supabase
+      const { data: insData, error: dbError } = await supabase
         .from("portfolios")
-        .insert({ artist_id: profile.id, image_url: publicUrl, title, storage_path: path })
+        .insert([
+          {
+            artist_id: profile.id,
+            image_url: publicUrl,
+            title,
+            storage_path: path,
+            is_internal: false,
+            is_internal_work: false,
+          },
+        ])
         .select()
         .maybeSingle();
 
-      if (insErr) {
-        console.error("insert error", insErr.message);
+      if (dbError) {
+        console.error("Database insert failed:", dbError);
         continue;
       }
 
       added.push(insData as PortfolioItem);
     }
 
-    setPortfolios((prev) => [...added, ...prev]);
+    await fetchPortfolios(profile.id);
     setUploading(false);
   };
 

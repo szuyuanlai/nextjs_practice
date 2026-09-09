@@ -5,8 +5,12 @@ import Link from "next/link";
 import { useRouter } from "next/navigation";
 import {
   ArrowLeft,
+  Edit3,
   ImagePlus,
   Loader2,
+  MoreHorizontal,
+  Pin,
+  PinOff,
   Save,
   ShieldCheck,
   Sparkles,
@@ -40,6 +44,17 @@ export default function ArtistDashboardPage() {
   const [portfolioFiles, setPortfolioFiles] = useState<File[]>([]);
   const [isInternalWork, setIsInternalWork] = useState(false);
   const [portfolios, setPortfolios] = useState<PortfolioItem[]>([]);
+  const [menuOpenId, setMenuOpenId] = useState<string | null>(null);
+  const [toast, setToast] = useState<{ message: string; kind: "success" | "error" } | null>(null);
+
+  useEffect(() => {
+    if (!toast) {
+      return;
+    }
+
+    const timer = window.setTimeout(() => setToast(null), 3000);
+    return () => window.clearTimeout(timer);
+  }, [toast]);
 
   useEffect(() => {
     const load = async () => {
@@ -183,6 +198,20 @@ export default function ArtistDashboardPage() {
     }
   };
 
+  const fetchPortfolios = async (artistId: string) => {
+    if (!supabase) {
+      return;
+    }
+
+    const { data: items } = await supabase
+      .from("portfolios")
+      .select("*")
+      .eq("artist_id", artistId)
+      .order("created_at", { ascending: false });
+
+    setPortfolios((items as PortfolioItem[]) ?? []);
+  };
+
   const handlePortfolioUpload = async () => {
     if (!portfolioFiles.length || !profile || !supabase) {
       return;
@@ -196,21 +225,23 @@ export default function ArtistDashboardPage() {
         const path = `${profile.id}/portfolio-${Date.now()}-${Math.random().toString(16).slice(2)}-${file.name}`;
         const { publicUrl } = await uploadFileToBucket(supabase, PORTFOLIO_BUCKETS, file, path);
 
-        const { data: inserted, error: insertError } = await supabase
+        const { data: inserted, error: dbError } = await supabase
           .from("portfolios")
-          .insert({
-            artist_id: profile.id,
-            image_url: publicUrl,
-            title: file.name.replace(/\.[^/.]+$/, "") || "未命名作品",
-            storage_path: path,
-            is_internal: isInternalWork,
-            is_internal_work: isInternalWork,
-          })
+          .insert([
+            {
+              artist_id: profile.id,
+              image_url: publicUrl,
+              title: file.name.replace(/\.[^/.]+$/, "") || "未命名作品",
+              storage_path: path,
+              is_internal: isInternalWork,
+              is_internal_work: isInternalWork,
+            },
+          ])
           .select()
           .maybeSingle();
 
-        if (insertError) {
-          console.error("Insert portfolio failed:", insertError.message);
+        if (dbError) {
+          console.error("Database insert failed:", dbError);
           continue;
         }
 
@@ -219,7 +250,11 @@ export default function ArtistDashboardPage() {
         }
       }
 
-      setPortfolios((current) => [...uploaded, ...current]);
+      if (uploaded.length > 0 || portfolioFiles.length > 0) {
+        await fetchPortfolios(profile.id);
+        setToast({ message: "作品上傳成功！已同步至作品集。", kind: "success" });
+      }
+
       setPortfolioFiles([]);
       setIsInternalWork(false);
     } catch (error) {
@@ -227,6 +262,84 @@ export default function ArtistDashboardPage() {
       alert("作品上傳失敗，請稍後再試。");
     } finally {
       setSaving(false);
+    }
+  };
+
+  const refreshPortfolioList = async () => {
+    if (!profile || !supabase) {
+      return;
+    }
+
+    const { data: items } = await supabase
+      .from("portfolios")
+      .select("*")
+      .eq("artist_id", profile.id)
+      .order("is_pinned", { ascending: false })
+      .order("created_at", { ascending: false });
+
+    setPortfolios((items as PortfolioItem[]) ?? []);
+  };
+
+  const handleTogglePin = async (item: PortfolioItem) => {
+    if (!supabase || !profile) {
+      return;
+    }
+
+    const pinnedCount = portfolios.filter((portfolio) => portfolio.is_pinned).length;
+    if (!item.is_pinned && pinnedCount >= 3) {
+      alert("最多只能置頂 3 張作品，請先取消其他置頂");
+      setMenuOpenId(null);
+      return;
+    }
+
+    try {
+      const { error } = await supabase
+        .from("portfolios")
+        .update({ is_pinned: !item.is_pinned })
+        .eq("id", item.id);
+
+      if (error) {
+        throw new Error(error.message);
+      }
+
+      await refreshPortfolioList();
+      setMenuOpenId(null);
+      setToast({ message: item.is_pinned ? "已取消置頂。" : "作品已置頂。", kind: "success" });
+    } catch (error) {
+      console.error("Toggle pin failed:", error);
+      alert("更新置頂狀態失敗，請稍後再試。");
+    }
+  };
+
+  const handleEditPortfolioTitle = async (item: PortfolioItem) => {
+    if (!supabase) {
+      return;
+    }
+
+    const nextTitle = window.prompt("請輸入作品名稱", item.title ?? "");
+    if (nextTitle === null) {
+      setMenuOpenId(null);
+      return;
+    }
+
+    const trimmedTitle = nextTitle.trim();
+
+    try {
+      const { error } = await supabase
+        .from("portfolios")
+        .update({ title: trimmedTitle || "未命名作品" })
+        .eq("id", item.id);
+
+      if (error) {
+        throw new Error(error.message);
+      }
+
+      await refreshPortfolioList();
+      setMenuOpenId(null);
+      setToast({ message: "作品名稱已更新。", kind: "success" });
+    } catch (error) {
+      console.error("Edit portfolio title failed:", error);
+      alert("修改作品名稱失敗，請稍後再試。");
     }
   };
 
@@ -248,7 +361,9 @@ export default function ArtistDashboardPage() {
         });
       }
 
-      setPortfolios((current) => current.filter((portfolio) => portfolio.id !== item.id));
+      await refreshPortfolioList();
+      setMenuOpenId(null);
+      setToast({ message: "作品已刪除。", kind: "success" });
     } catch (error) {
       console.error("Delete portfolio failed:", error);
       alert("刪除失敗，請稍後再試。");
@@ -267,10 +382,29 @@ export default function ArtistDashboardPage() {
   }
 
   const avatarPreview = profile?.avatar_url ?? undefined;
+  const sortedPortfolios = [...portfolios].sort((a, b) => {
+    const pinnedDiff = Number(Boolean(b.is_pinned)) - Number(Boolean(a.is_pinned));
+    if (pinnedDiff !== 0) return pinnedDiff;
+    return new Date(b.created_at ?? 0).getTime() - new Date(a.created_at ?? 0).getTime();
+  });
 
   return (
     <main className="min-h-screen bg-[linear-gradient(180deg,#f1fbff_0%,#edf7ff_18%,#ffffff_100%)] px-4 py-8 text-slate-800 sm:px-6 lg:px-8">
       <div className="mx-auto max-w-6xl">
+        {toast ? (
+          <div className="pointer-events-none fixed right-5 top-5 z-50">
+            <div
+              className={`rounded-2xl border px-4 py-3 text-sm font-semibold shadow-lg backdrop-blur-sm ${
+                toast.kind === "success"
+                  ? "border-emerald-200 bg-emerald-50 text-emerald-700"
+                  : "border-rose-200 bg-rose-50 text-rose-700"
+              }`}
+            >
+              {toast.message}
+            </div>
+          </div>
+        ) : null}
+
         <Link href="/" className="mb-6 inline-flex items-center gap-2 text-sm font-medium text-sky-700 transition hover:text-sky-800">
           <ArrowLeft className="h-4 w-4" />
           返回首頁
@@ -430,43 +564,104 @@ export default function ArtistDashboardPage() {
             </div>
           </div>
 
-          {portfolios.length === 0 ? (
+          {sortedPortfolios.length === 0 ? (
             <div className="rounded-[22px] border border-dashed border-sky-200 bg-sky-50 p-8 text-center text-slate-600">
               目前尚未上傳作品，先新增幾張代表作吧。
             </div>
           ) : (
-            <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-3">
-              {portfolios.map((item) => (
-                <div key={item.id} className="overflow-hidden rounded-[22px] border border-sky-100 bg-slate-50">
-                  <div className="relative h-52 overflow-hidden bg-slate-100">
-                    <>
-                      {/* eslint-disable-next-line @next/next/no-img-element */}
-                      <img src={item.image_url} alt={item.title ?? "portfolio image"} className="h-full w-full object-cover" />
-                    </>
+            <div className="grid gap-5 sm:grid-cols-2 xl:grid-cols-3">
+              {sortedPortfolios.map((item) => (
+                <div
+                  key={item.id}
+                  className="group relative overflow-hidden rounded-[26px] border border-sky-100 bg-white shadow-[0_18px_50px_rgba(14,116,144,0.06)] transition duration-300 hover:-translate-y-1 hover:shadow-[0_26px_65px_rgba(14,116,144,0.12)]"
+                >
+                  <div className="relative h-64 overflow-hidden bg-slate-100">
+                    {/* eslint-disable-next-line @next/next/no-img-element */}
+                    <img
+                      src={item.image_url}
+                      alt={item.title ?? "portfolio image"}
+                      className="h-full w-full object-cover transition duration-500 group-hover:scale-105"
+                    />
+
+                    <div className="absolute inset-0 bg-gradient-to-t from-slate-950/80 via-slate-900/15 to-transparent opacity-0 transition duration-300 group-hover:opacity-100" />
+
+                    {item.is_pinned ? (
+                      <span className="absolute right-3 top-3 inline-flex items-center gap-1 rounded-full bg-amber-300 px-2.5 py-1 text-[10px] font-bold uppercase tracking-[0.18em] text-amber-950 shadow-sm">
+                        <Pin className="h-3 w-3" />
+                        置頂
+                      </span>
+                    ) : null}
+
                     {item.is_internal ?? item.is_internal_work ? (
-                      <span className="absolute left-3 top-3 rounded-full bg-slate-900/75 px-2 py-1 text-[10px] font-semibold uppercase tracking-[0.18em] text-white">
+                      <span className="absolute left-3 top-3 rounded-full bg-slate-950/70 px-2 py-1 text-[10px] font-semibold uppercase tracking-[0.18em] text-white backdrop-blur-sm">
                         Internal
                       </span>
                     ) : null}
+
+                    <div className="absolute right-3 top-3 flex items-center justify-end">
+                      <div className="relative">
+                        <button
+                          type="button"
+                          onClick={() => setMenuOpenId((current) => (current === item.id ? null : item.id))}
+                          className="flex h-9 w-9 items-center justify-center rounded-full border border-slate-200 bg-white/90 text-slate-700 shadow-sm backdrop-blur-sm transition hover:bg-white"
+                          aria-label="作品選單"
+                        >
+                          <MoreHorizontal className="h-4 w-4" />
+                        </button>
+
+                        {menuOpenId === item.id ? (
+                          <div className="absolute right-0 top-11 z-20 w-44 overflow-hidden rounded-2xl border border-slate-200 bg-white p-1.5 shadow-[0_20px_50px_rgba(15,23,42,0.18)]">
+                            <button
+                              type="button"
+                              onClick={() => handleEditPortfolioTitle(item)}
+                              className="flex w-full items-center gap-2 rounded-xl px-3 py-2 text-left text-sm font-medium text-slate-700 transition hover:bg-sky-50"
+                            >
+                              <Edit3 className="h-4 w-4" />
+                              編輯
+                            </button>
+                            <button
+                              type="button"
+                              onClick={() => handleTogglePin(item)}
+                              className="flex w-full items-center gap-2 rounded-xl px-3 py-2 text-left text-sm font-medium text-slate-700 transition hover:bg-sky-50"
+                            >
+                              {item.is_pinned ? <PinOff className="h-4 w-4" /> : <Pin className="h-4 w-4" />}
+                              {item.is_pinned ? "取消置頂" : "置頂"}
+                            </button>
+                            <button
+                              type="button"
+                              onClick={() => handleDeletePortfolio(item)}
+                              className="flex w-full items-center gap-2 rounded-xl px-3 py-2 text-left text-sm font-medium text-rose-600 transition hover:bg-rose-50"
+                            >
+                              <Trash2 className="h-4 w-4" />
+                              刪除作品
+                            </button>
+                          </div>
+                        ) : null}
+                      </div>
+                    </div>
+
+                    <div className="absolute inset-x-0 bottom-0 z-10 flex items-end justify-between p-4 opacity-0 transition duration-300 group-hover:opacity-100">
+                      <div className="rounded-full border border-white/20 bg-black/35 px-3 py-1.5 text-[10px] font-semibold uppercase tracking-[0.18em] text-white backdrop-blur-sm">
+                        {item.is_internal ?? item.is_internal_work ? "內部樣稿" : "公開作品"}
+                      </div>
+                      <button
+                        type="button"
+                        onClick={() => window.open(item.image_url, "_blank", "noopener,noreferrer")}
+                        className="rounded-full border border-white/20 bg-white/15 px-3 py-1.5 text-[10px] font-semibold uppercase tracking-[0.18em] text-white backdrop-blur-sm transition hover:bg-white/25"
+                      >
+                        Preivew
+                      </button>
+                    </div>
                   </div>
 
                   <div className="space-y-3 p-4">
                     <div className="flex items-start justify-between gap-3">
                       <div>
                         <p className="text-base font-black text-slate-900">{item.title ?? "未命名作品"}</p>
-                        <p className="text-xs text-slate-500">
+                        <p className="mt-1 text-xs text-slate-500">
                           {item.is_internal ?? item.is_internal_work ? "內部樣稿" : "公開作品"}
                         </p>
                       </div>
-
-                      <button
-                        type="button"
-                        onClick={() => handleDeletePortfolio(item)}
-                        className="inline-flex items-center gap-1 rounded-full border border-rose-200 bg-rose-50 px-2.5 py-1.5 text-xs font-semibold text-rose-700 transition hover:bg-rose-100"
-                      >
-                        <Trash2 className="h-3.5 w-3.5" />
-                        刪除
-                      </button>
                     </div>
                   </div>
                 </div>

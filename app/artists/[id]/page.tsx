@@ -55,6 +55,7 @@ export default async function ArtistPage({ params }: Props) {
     .from("portfolios")
     .select("*")
     .eq("artist_id", params.id)
+    .order("is_pinned", { ascending: false })
     .order("created_at", { ascending: false });
 
   const publicPortfolios = (portfolios ?? []).filter((item) => !(item.is_internal ?? item.is_internal_work));

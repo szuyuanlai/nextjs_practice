@@ -16,5 +16,6 @@ export type PortfolioItem = {
   storage_path?: string | null;
   is_internal?: boolean | null;
   is_internal_work?: boolean | null;
+  is_pinned?: boolean | null;
   created_at?: string | null;
 };

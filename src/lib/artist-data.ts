@@ -71,6 +71,7 @@ export async function fetchArtistPortfolios(supabase: any, artistId: string) {
     .from("portfolios")
     .select("*")
     .eq("artist_id", artistId)
+    .order("is_pinned", { ascending: false })
     .order("created_at", { ascending: false });
 
   if (error) {
