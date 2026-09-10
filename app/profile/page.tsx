@@ -49,41 +49,44 @@ export default function ProfilePage() {
         .eq("id", user.id)
         .maybeSingle();
 
-      const resolvedProfile = (existingProfile as ArtistProfile | null) ?? {
-        id: user.id,
-        full_name: user.user_metadata?.full_name ?? user.user_metadata?.name ?? "",
-        bio: "",
-        avatar_url: user.user_metadata?.avatar_url ?? null,
-        role: (user.user_metadata?.role ?? "CLIENT").toString().toUpperCase(),
-        status: "idle",
-      };
+      if (profileError) {
+        console.warn("讀取 profiles 失敗:", profileError.message);
+        setLoading(false);
+        return;
+      }
 
-      if (!existingProfile && !profileError) {
-        const { data: createdProfile } = await supabase
+      if (!existingProfile) {
+        const { data: createdProfile, error: insertError } = await supabase
           .from("profiles")
-          .upsert(
-            {
-              id: user.id,
-              full_name: resolvedProfile.full_name,
-              bio: resolvedProfile.bio,
-              avatar_url: resolvedProfile.avatar_url,
-              role: resolvedProfile.role,
-              status: resolvedProfile.status,
-            },
-            { onConflict: "id" },
-          )
+          .insert({
+            id: user.id,
+            email: user.email ?? null,
+            full_name: user.user_metadata?.full_name ?? user.user_metadata?.name ?? "",
+            bio: "",
+            avatar_url: user.user_metadata?.avatar_url ?? null,
+            role: "CLIENT",
+            status: "idle",
+          })
           .select()
           .maybeSingle();
 
-        setProfile(createdProfile as ArtistProfile | null);
-        setFullName((createdProfile?.full_name ?? resolvedProfile.full_name ?? "").toString());
-        setBio((createdProfile?.bio ?? resolvedProfile.bio ?? "").toString());
-        setStatus((createdProfile?.status as StatusOption | undefined) ?? "idle");
+        if (insertError) {
+          console.warn("建立 profiles 失敗:", insertError.message);
+          setLoading(false);
+          return;
+        }
+
+        const nextProfile = createdProfile as ArtistProfile | null;
+        setProfile(nextProfile);
+        setFullName((nextProfile?.full_name ?? "").toString());
+        setBio((nextProfile?.bio ?? "").toString());
+        setStatus((nextProfile?.status as StatusOption | undefined) ?? "idle");
       } else {
-        setProfile(resolvedProfile);
-        setFullName((resolvedProfile.full_name ?? "").toString());
-        setBio((resolvedProfile.bio ?? "").toString());
-        setStatus((resolvedProfile.status as StatusOption | undefined) ?? "idle");
+        const nextProfile = existingProfile as ArtistProfile | null;
+        setProfile(nextProfile);
+        setFullName((nextProfile?.full_name ?? "").toString());
+        setBio((nextProfile?.bio ?? "").toString());
+        setStatus((nextProfile?.status as StatusOption | undefined) ?? "idle");
       }
 
       setLoading(false);

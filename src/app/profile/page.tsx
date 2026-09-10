@@ -44,23 +44,49 @@ export default function ProfilePage() {
         return;
       }
 
-      const { data: profileData } = await supabase
+      const { data: existingProfile, error: profileError } = await supabase
         .from("profiles")
         .select("*")
         .eq("id", user.id)
         .maybeSingle();
 
-      const nextProfile = (profileData as ProfileRecord | null) ?? {
-        id: user.id,
-        full_name: user.user_metadata?.full_name ?? user.user_metadata?.name ?? "",
-        bio: "",
-        avatar_url: user.user_metadata?.avatar_url ?? null,
-        role: user.user_metadata?.role ?? "CLIENT",
-      };
+      if (profileError) {
+        console.warn("讀取 profiles 失敗:", profileError.message);
+        setLoading(false);
+        return;
+      }
 
-      setProfile(nextProfile);
-      setFullName(nextProfile.full_name ?? "");
-      setBio(nextProfile.bio ?? "");
+      if (!existingProfile) {
+        const { data: createdProfile, error: insertError } = await supabase
+          .from("profiles")
+          .insert({
+            id: user.id,
+            email: user.email ?? null,
+            full_name: user.user_metadata?.full_name ?? user.user_metadata?.name ?? "",
+            avatar_url: user.user_metadata?.avatar_url ?? null,
+            role: "CLIENT",
+            bio: "",
+            status: "idle",
+          })
+          .select()
+          .maybeSingle();
+
+        if (insertError) {
+          console.warn("建立 profiles 失敗:", insertError.message);
+          setLoading(false);
+          return;
+        }
+
+        const nextProfile = createdProfile as ProfileRecord | null;
+        setProfile(nextProfile);
+        setFullName(nextProfile?.full_name ?? "");
+        setBio(nextProfile?.bio ?? "");
+      } else {
+        const nextProfile = existingProfile as ArtistProfile | null;
+        setProfile(nextProfile);
+        setFullName(nextProfile?.full_name ?? "");
+        setBio(nextProfile?.bio ?? "");
+      }
       setLoading(false);
     };
 

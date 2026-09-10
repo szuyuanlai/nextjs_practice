@@ -1,14 +1,5 @@
 import type { SupabaseClient, User } from "@supabase/supabase-js";
 
-function normalizeRole(value?: string | null) {
-  if (!value) return "CLIENT";
-  const normalized = value.toUpperCase();
-  if (normalized === "ARTIST" || normalized === "ADMIN" || normalized === "CLIENT") {
-    return normalized;
-  }
-  return "CLIENT";
-}
-
 export function normalizeXAvatarUrl(url?: string | null): string | null {
   if (!url) return null;
 
@@ -44,40 +35,34 @@ export async function syncProfileFromAuthUser(client: SupabaseClient, user: User
 
   const avatarUrl = provider === "x" ? normalizeXAvatarUrl(rawAvatarUrl) : rawAvatarUrl;
 
-  const payload: Record<string, unknown> = {
-    id: user.id,
-    role: normalizeRole(toNullableString(metadata.role)),
-  };
+  const { data: existingProfile, error: selectError } = await client
+    .from("profiles")
+    .select("id")
+    .eq("id", user.id)
+    .maybeSingle();
 
-  if (fullName) {
-    payload.full_name = fullName;
-  }
-
-  if (preferredUsername) {
-    payload.display_name = preferredUsername;
-  }
-
-  if (avatarUrl) {
-    payload.avatar_url = avatarUrl;
-  }
-
-  const upsertProfile = async (nextPayload: Record<string, unknown>) => {
-    return client
-      .from("profiles")
-      .upsert(nextPayload, { onConflict: "id" });
-  };
-
-  const { error } = await upsertProfile(payload);
-
-  if (!error) {
+  if (selectError) {
+    console.warn("Failed to read existing profile during auth sync:", selectError.message);
     return;
   }
 
-  const message = `${error.message} ${error.details ?? ""}`;
-  if (/display_name|column|does not exist/i.test(message)) {
-    const fallbackPayload = Object.fromEntries(
-      Object.entries(payload).filter(([key]) => key !== "display_name"),
-    );
-    await upsertProfile(fallbackPayload);
+  if (existingProfile) {
+    return;
+  }
+
+  const insertPayload: Record<string, unknown> = {
+    id: user.id,
+    email: user.email ?? null,
+    role: "CLIENT",
+  };
+
+  if (fullName) insertPayload.full_name = fullName;
+  if (preferredUsername) insertPayload.display_name = preferredUsername;
+  if (avatarUrl) insertPayload.avatar_url = avatarUrl;
+
+  const { error: insertError } = await client.from("profiles").insert(insertPayload);
+
+  if (insertError) {
+    console.warn("Failed to create initial profile during auth sync:", insertError.message);
   }
 }
