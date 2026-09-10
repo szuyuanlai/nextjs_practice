@@ -36,7 +36,7 @@ export function Navbar() {
   const [isLoading, setIsLoading] = useState(supabase !== null);
   const [isMenuOpen, setIsMenuOpen] = useState(false);
   const [isOrderModalOpen, setIsOrderModalOpen] = useState(false);
-  const protectedNavPaths = new Set(["/characters", "/characters/create"]);
+  const protectedNavPaths = new Set(["/characters", "/characters/create", "/orders"]);
 
   useEffect(() => {
     const client = supabase;
@@ -202,7 +202,7 @@ export function Navbar() {
 
   const handleOrderQuery = () => {
     if (!user) {
-      window.location.href = "/login";
+      window.location.href = "/login?redirectTo=%2Forders";
       return;
     }
 
@@ -222,8 +222,7 @@ export function Navbar() {
 
     if (!user) {
       event.preventDefault();
-      window.alert("請先登入帳號以使用此功能");
-      window.location.href = "/login";
+      window.location.href = `/login?redirectTo=${encodeURIComponent(href)}`;
     }
   };
 

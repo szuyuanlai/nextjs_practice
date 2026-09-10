@@ -1,6 +1,7 @@
 "use client";
 
 import Link from "next/link";
+import { useRouter } from "next/navigation";
 import { useEffect, useState } from "react";
 import { ArrowLeft, ClipboardList, Loader2, ShieldAlert } from "lucide-react";
 import { supabase } from "@/src/lib/supabase/client";
@@ -30,6 +31,7 @@ const statusMap: Record<OrderStatus, { label: string; color: string }> = {
 };
 
 export default function OrdersPage() {
+  const router = useRouter();
   const [orders, setOrders] = useState<OrderRow[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -47,8 +49,7 @@ export default function OrdersPage() {
 
       const { data: authData, error: authError } = await supabase.auth.getUser();
       if (authError || !authData.user) {
-        setError("請先登入後再查看訂單資訊。");
-        setIsLoading(false);
+        router.replace("/login?redirectTo=%2Forders");
         return;
       }
 
@@ -69,7 +70,7 @@ export default function OrdersPage() {
     };
 
     void fetchOrders();
-  }, []);
+  }, [router]);
 
   return (
     <main className="min-h-screen bg-[linear-gradient(180deg,#f1fbff_0%,#edf7ff_18%,#ffffff_100%)] px-4 py-8 text-slate-800 sm:px-6 lg:px-8">

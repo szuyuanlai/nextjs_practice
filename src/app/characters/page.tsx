@@ -38,8 +38,7 @@ export default function CharactersPage() {
       }
 
       if (!user) {
-        window.alert("請先登入帳號以使用此功能");
-        router.push("/login");
+        router.replace("/login?redirectTo=%2Fcharacters");
         return;
       }
 

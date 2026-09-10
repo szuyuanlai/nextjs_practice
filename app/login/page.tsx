@@ -2,14 +2,19 @@
 
 import Link from "next/link";
 import { useState } from "react";
+import { useSearchParams } from "next/navigation";
 import { ArrowLeft, Loader2 } from "lucide-react";
 import { getSupabaseClient } from "@/src/lib/supabase/client";
 
 type OAuthProvider = "google" | "x";
 
 export default function LoginPage() {
+  const searchParams = useSearchParams();
   const [loadingProvider, setLoadingProvider] = useState<OAuthProvider | null>(null);
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
+
+  const rawRedirectTo = searchParams.get("redirectTo") ?? "/";
+  const safeRedirectTo = rawRedirectTo.startsWith("/") ? rawRedirectTo : "/";
 
   const handleOAuthLogin = async (provider: OAuthProvider) => {
     const supabase = getSupabaseClient();
@@ -21,7 +26,7 @@ export default function LoginPage() {
     setErrorMessage(null);
     setLoadingProvider(provider);
 
-    const redirectTo = `${window.location.origin}/auth/callback`;
+    const redirectTo = `${window.location.origin}/auth/callback?next=${encodeURIComponent(safeRedirectTo)}`;
 
     const { error } = await supabase.auth.signInWithOAuth({
       provider,
