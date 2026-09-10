@@ -14,7 +14,7 @@ import {
 } from "lucide-react";
 import { OrderHistoryModal } from "@/src/components/OrderHistoryModal";
 import { supabase } from "@/src/lib/supabase/client";
-import { normalizeXAvatarUrl, syncProfileFromAuthUser } from "@/src/lib/supabase/profile-sync";
+import { normalizeXAvatarUrl } from "@/src/lib/supabase/profile-sync";
 
 type ProfileRoleRow = {
   role?: string | null;
@@ -66,12 +66,30 @@ export function Navbar() {
 
         const nextUser = session?.user ?? null;
 
-        if (nextUser) {
-          await syncProfileFromAuthUser(client, nextUser);
-        }
-
         setUser(nextUser);
-        setRole(null);
+        if (nextUser) {
+          console.log("Checking profile for user:", nextUser.id);
+
+          const { data: existingProfile, error: profileError } = await client
+            .from("profiles")
+            .select("role")
+            .eq("id", nextUser.id)
+            .single();
+
+          console.log("Existing profile result:", existingProfile, "Error:", profileError);
+
+          if (profileError) {
+            if (profileError.code !== "PGRST116") {
+              console.warn("Failed to read profile role during session load:", profileError.message);
+            }
+
+            setRole(null);
+          } else {
+            setRole((existingProfile?.role as string | null | undefined) ?? null);
+          }
+        } else {
+          setRole(null);
+        }
         setIsLoading(false);
       } catch {
         setUser(null);
@@ -89,12 +107,34 @@ export function Navbar() {
       setUser(nextUser);
       setIsLoading(false);
 
-      if (event === "SIGNED_IN" && nextUser) {
-        void syncProfileFromAuthUser(client, nextUser);
-      }
-
       if (event === "SIGNED_OUT" || !nextUser) {
         setRole(null);
+        return;
+      }
+
+      if (event === "SIGNED_IN" && nextUser) {
+        console.log("Checking profile for user:", nextUser.id);
+
+        void (async () => {
+          const { data: existingProfile, error: profileError } = await client
+            .from("profiles")
+            .select("role")
+            .eq("id", nextUser.id)
+            .single();
+
+          console.log("Existing profile result:", existingProfile, "Error:", profileError);
+
+          if (profileError) {
+            if (profileError.code !== "PGRST116") {
+              console.warn("Failed to read profile role during sign-in:", profileError.message);
+            }
+
+            setRole(null);
+            return;
+          }
+
+          setRole((existingProfile?.role as string | null | undefined) ?? null);
+        })();
       }
     });
 

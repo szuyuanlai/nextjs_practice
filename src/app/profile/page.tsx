@@ -48,12 +48,14 @@ export default function ProfilePage() {
         .from("profiles")
         .select("*")
         .eq("id", user.id)
-        .maybeSingle();
+        .single();
 
       if (profileError) {
-        console.warn("讀取 profiles 失敗:", profileError.message);
-        setLoading(false);
-        return;
+        if (profileError.code !== "PGRST116") {
+          console.warn("讀取 profiles 失敗:", profileError.message);
+          setLoading(false);
+          return;
+        }
       }
 
       if (!existingProfile) {
@@ -64,7 +66,6 @@ export default function ProfilePage() {
             email: user.email ?? null,
             full_name: user.user_metadata?.full_name ?? user.user_metadata?.name ?? "",
             avatar_url: user.user_metadata?.avatar_url ?? null,
-            role: "CLIENT",
             bio: "",
             status: "idle",
           })
@@ -108,11 +109,15 @@ export default function ProfilePage() {
         })
         .eq("id", profile.id);
 
+          console.log("Checking profile for user:", user.id);
+
       if (error) {
         throw new Error(error.message);
       }
 
       setProfile((current) => ({ ...(current ?? profile), full_name: fullName.trim(), bio }));
+
+          console.log("Existing profile result:", existingProfile, "Error:", profileError);
       alert("儲存成功");
     } catch (error) {
       console.error("Save profile failed:", error);

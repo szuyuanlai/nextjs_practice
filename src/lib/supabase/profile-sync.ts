@@ -35,15 +35,21 @@ export async function syncProfileFromAuthUser(client: SupabaseClient, user: User
 
   const avatarUrl = provider === "x" ? normalizeXAvatarUrl(rawAvatarUrl) : rawAvatarUrl;
 
+  console.log("Checking profile for user:", user.id);
+
   const { data: existingProfile, error: selectError } = await client
     .from("profiles")
-    .select("id")
+    .select("*")
     .eq("id", user.id)
-    .maybeSingle();
+    .single();
+
+  console.log("Existing profile result:", existingProfile, "Error:", selectError);
 
   if (selectError) {
-    console.warn("Failed to read existing profile during auth sync:", selectError.message);
-    return;
+    if (selectError.code !== "PGRST116") {
+      console.warn("Failed to read existing profile during auth sync:", selectError.message);
+      return;
+    }
   }
 
   if (existingProfile) {
@@ -53,7 +59,6 @@ export async function syncProfileFromAuthUser(client: SupabaseClient, user: User
   const insertPayload: Record<string, unknown> = {
     id: user.id,
     email: user.email ?? null,
-    role: "CLIENT",
   };
 
   if (fullName) insertPayload.full_name = fullName;

@@ -43,16 +43,22 @@ export default function ProfilePage() {
 
       setUserEmail(user.email ?? null);
 
+      console.log("Checking profile for user:", user.id);
+
       const { data: existingProfile, error: profileError } = await supabase
         .from("profiles")
         .select("*")
         .eq("id", user.id)
-        .maybeSingle();
+        .single();
+
+      console.log("Existing profile result:", existingProfile, "Error:", profileError);
 
       if (profileError) {
-        console.warn("讀取 profiles 失敗:", profileError.message);
-        setLoading(false);
-        return;
+        if (profileError.code !== "PGRST116") {
+          console.warn("讀取 profiles 失敗:", profileError.message);
+          setLoading(false);
+          return;
+        }
       }
 
       if (!existingProfile) {
@@ -64,7 +70,6 @@ export default function ProfilePage() {
             full_name: user.user_metadata?.full_name ?? user.user_metadata?.name ?? "",
             bio: "",
             avatar_url: user.user_metadata?.avatar_url ?? null,
-            role: "CLIENT",
             status: "idle",
           })
           .select()
