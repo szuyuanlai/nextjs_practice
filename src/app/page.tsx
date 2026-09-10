@@ -1,5 +1,12 @@
 import { Navbar } from "@/src/components/Navbar";
-import { OrderForm } from "@/src/components/OrderForm";
+import { ArtistMarquee } from "@/src/components/ArtistMarquee";
+import { Palette, Wand2 } from "lucide-react";
+
+const processSteps = [
+  { title: "1. 需求確認", text: "填寫角色風格、配色與參考方向，快速對齊你想要的世界觀。" },
+  { title: "2. 方案執行", text: "由團隊整理重點並進入製作，分階段回報讓進度透明可追蹤。" },
+  { title: "3. 完稿交付", text: "完成定稿與素材整理，交付可直接應用的角色資產。" },
+];
 
 export default function HomePage() {
   return (
@@ -7,7 +14,7 @@ export default function HomePage() {
       <Navbar />
 
       <div className="mx-auto max-w-7xl px-4 py-8 sm:px-6 lg:px-8 lg:py-12">
-        <section className="mb-10 grid items-center gap-8 lg:grid-cols-[1.2fr_0.8fr]">
+        <section className="mb-10 rounded-[32px] border border-white/10 bg-slate-900/60 p-6 shadow-2xl shadow-violet-500/10 sm:p-8 lg:p-12">
           <div className="space-y-6">
             <div className="inline-flex items-center gap-2 rounded-full border border-pink-400/30 bg-pink-500/10 px-3 py-1.5 text-xs font-semibold uppercase tracking-[0.2em] text-pink-200">
               <span className="h-2 w-2 rounded-full bg-pink-400" />
@@ -28,41 +35,58 @@ export default function HomePage() {
 
             <div className="flex flex-wrap gap-3">
               <a
-                href="#plans"
+                href="/characters/create"
                 className="rounded-full bg-gradient-to-r from-pink-500 via-violet-500 to-cyan-400 px-5 py-3 font-semibold text-white shadow-lg shadow-pink-500/30 transition hover:brightness-110"
               >
                 立即預約
               </a>
               <a
-                href="#gallery"
+                href="/artists"
                 className="rounded-full border border-white/10 bg-white/5 px-5 py-3 font-semibold text-slate-100 transition hover:border-pink-400/40 hover:bg-white/10"
               >
-                查看角色藝廊
+                查看合作繪師
               </a>
-            </div>
-          </div>
-
-          <div className="rounded-[28px] border border-white/10 bg-slate-900/70 p-5 shadow-2xl shadow-violet-500/10">
-            <div className="grid gap-4 sm:grid-cols-2">
-              <div className="rounded-2xl border border-pink-400/20 bg-pink-500/10 p-4">
-                <p className="text-sm text-pink-200">客製化角色</p>
-                <p className="mt-3 text-3xl font-black text-white">120+</p>
-              </div>
-              <div className="rounded-2xl border border-cyan-400/20 bg-cyan-500/10 p-4">
-                <p className="text-sm text-cyan-200">平均交付</p>
-                <p className="mt-3 text-3xl font-black text-white">7 天</p>
-              </div>
-              <div className="rounded-2xl border border-violet-400/20 bg-violet-500/10 p-4 sm:col-span-2">
-                <p className="text-sm text-violet-200">設計風格</p>
-                <p className="mt-3 text-xl font-semibold text-white">
-                  可愛、成熟、御姐、校園、黑暗蘿莉、日系潮流
-                </p>
-              </div>
+              <a
+                href="/orders"
+                className="rounded-full border border-cyan-400/30 bg-cyan-500/10 px-5 py-3 font-semibold text-cyan-100 transition hover:border-cyan-300/50 hover:bg-cyan-400/15"
+              >
+                訂單查詢
+              </a>
             </div>
           </div>
         </section>
 
-        <OrderForm />
+        <section id="process" className="mb-10 rounded-[32px] border border-white/10 bg-slate-900/60 p-6 sm:p-8">
+          <p className="mb-3 inline-flex items-center gap-2 rounded-full border border-violet-400/30 bg-violet-500/10 px-3 py-1 text-xs font-semibold uppercase tracking-[0.2em] text-violet-200">
+            <Wand2 className="h-3.5 w-3.5" />
+            訂製流程
+          </p>
+          <h2 className="mb-6 text-2xl font-black tracking-tight text-white sm:text-3xl">三步驟完成你的角色委託</h2>
+
+          <div className="grid gap-4 md:grid-cols-3">
+            {processSteps.map((step) => (
+              <article key={step.title} className="rounded-2xl border border-white/10 bg-white/5 p-4">
+                <h3 className="text-lg font-black text-white">{step.title}</h3>
+                <p className="mt-2 text-sm leading-7 text-slate-300">{step.text}</p>
+              </article>
+            ))}
+          </div>
+        </section>
+
+        <section id="artists" className="mb-4">
+          <div className="mb-4">
+            <p className="mb-2 inline-flex items-center gap-2 rounded-full border border-cyan-400/30 bg-cyan-500/10 px-3 py-1 text-xs font-semibold uppercase tracking-[0.2em] text-cyan-200">
+              <Palette className="h-3.5 w-3.5" />
+              合作繪師
+            </p>
+            <h2 className="text-2xl font-black tracking-tight text-white sm:text-3xl">選擇喜歡的風格，直接前往委託</h2>
+          </div>
+
+          <div className="overflow-hidden rounded-[28px] border border-white/10 bg-slate-900/60 p-4 shadow-2xl shadow-violet-500/10 sm:p-5">
+            <ArtistMarquee />
+          </div>
+        </section>
+
       </div>
     </main>
   );

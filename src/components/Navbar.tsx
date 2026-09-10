@@ -1,7 +1,7 @@
 "use client";
 
 import Link from "next/link";
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useRef, useState, type MouseEvent as ReactMouseEvent } from "react";
 import type { User } from "@supabase/supabase-js";
 import {
   ChevronDown,
@@ -36,6 +36,7 @@ export function Navbar() {
   const [isLoading, setIsLoading] = useState(supabase !== null);
   const [isMenuOpen, setIsMenuOpen] = useState(false);
   const [isOrderModalOpen, setIsOrderModalOpen] = useState(false);
+  const protectedNavPaths = new Set(["/characters", "/characters/create"]);
 
   useEffect(() => {
     const client = supabase;
@@ -209,6 +210,23 @@ export function Navbar() {
     setIsMenuOpen(false);
   };
 
+  const handleNavLinkClick = (event: ReactMouseEvent<HTMLAnchorElement>, href: string) => {
+    if (!protectedNavPaths.has(href)) {
+      return;
+    }
+
+    if (isLoading) {
+      event.preventDefault();
+      return;
+    }
+
+    if (!user) {
+      event.preventDefault();
+      window.alert("請先登入帳號以使用此功能");
+      window.location.href = "/login";
+    }
+  };
+
   const rawAvatarUrl = user?.user_metadata?.avatar_url as string | undefined;
   const provider = String(user?.app_metadata?.provider ?? "").toLowerCase();
   const avatarUrl = provider === "x" ? normalizeXAvatarUrl(rawAvatarUrl) ?? undefined : rawAvatarUrl;
@@ -246,6 +264,7 @@ export function Navbar() {
               <Link
                 key={item.href}
                 href={item.href}
+                onClick={(event) => handleNavLinkClick(event, item.href)}
                 className="rounded-lg px-4 py-2 transition-colors duration-200 hover:bg-sky-50 hover:text-sky-600"
               >
                 {item.label}

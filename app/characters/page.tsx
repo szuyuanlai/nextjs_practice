@@ -1,6 +1,7 @@
 "use client";
 
 import Link from "next/link";
+import { useRouter } from "next/navigation";
 import { useEffect, useState } from "react";
 import { ArrowLeft, FolderKanban, Loader2, Sparkles } from "lucide-react";
 import { getSupabaseClient } from "@/src/lib/supabase/client";
@@ -12,6 +13,8 @@ const sampleCharacters = [
 ];
 
 export default function CharactersPage() {
+  const router = useRouter();
+  const [authLoading, setAuthLoading] = useState(true);
   const [statusMessage, setStatusMessage] = useState("載入中...");
 
   useEffect(() => {
@@ -23,6 +26,7 @@ export default function CharactersPage() {
       if (!supabase) {
         if (!isCancelled) {
           setStatusMessage("Supabase 尚未設定，顯示預設展示內容。");
+          setAuthLoading(false);
         }
         return;
       }
@@ -36,7 +40,8 @@ export default function CharactersPage() {
       }
 
       if (!user) {
-        setStatusMessage("目前尚未登入，以下為公開預覽內容。");
+        window.alert("請先登入帳號以使用此功能");
+        router.push("/login");
         return;
       }
 
@@ -48,10 +53,12 @@ export default function CharactersPage() {
 
       if (error) {
         setStatusMessage(`已登入，但資料讀取失敗：${error.message}`);
+        setAuthLoading(false);
         return;
       }
 
       setStatusMessage(`已登入：${user.email ?? user.id}。目前可讀取的 profile 數量：約 ${count ?? 0} 筆。`);
+      setAuthLoading(false);
     };
 
     void loadCharacters();
@@ -59,7 +66,15 @@ export default function CharactersPage() {
     return () => {
       isCancelled = true;
     };
-  }, []);
+  }, [router]);
+
+  if (authLoading) {
+    return (
+      <main className="flex min-h-screen items-center justify-center bg-[linear-gradient(180deg,#f1fbff_0%,#edf7ff_18%,#ffffff_100%)] px-4">
+        <div className="rounded-2xl border border-sky-100 bg-white px-5 py-4 text-slate-600 shadow-sm">載入中...</div>
+      </main>
+    );
+  }
 
   return (
     <main className="min-h-screen bg-[linear-gradient(180deg,#f1fbff_0%,#edf7ff_18%,#ffffff_100%)] px-4 py-8 text-slate-800 sm:px-6 lg:px-8">

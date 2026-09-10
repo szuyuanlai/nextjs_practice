@@ -1,12 +1,15 @@
 "use client";
 
 import Link from "next/link";
+import { useRouter } from "next/navigation";
 import { useEffect, useState } from "react";
 import { ArrowLeft, Sparkles } from "lucide-react";
 import { getSupabaseClient } from "@/src/lib/supabase/client";
 import { OrderForm } from "@/src/components/OrderForm";
 
 export default function CreateCharacterPage() {
+  const router = useRouter();
+  const [authLoading, setAuthLoading] = useState(true);
   const [statusMessage, setStatusMessage] = useState("載入中...");
 
   useEffect(() => {
@@ -18,6 +21,7 @@ export default function CreateCharacterPage() {
       if (!supabase) {
         if (!isCancelled) {
           setStatusMessage("Supabase 尚未設定，已改顯示預設下單表單。");
+          setAuthLoading(false);
         }
         return;
       }
@@ -30,7 +34,14 @@ export default function CreateCharacterPage() {
         return;
       }
 
-      setStatusMessage(user ? `目前登入使用者：${user.email ?? user.id}` : "目前尚未登入，但仍可先填寫需求。");
+      if (!user) {
+        window.alert("請先登入帳號以使用此功能");
+        router.push("/login");
+        return;
+      }
+
+      setStatusMessage(`目前登入使用者：${user.email ?? user.id}`);
+      setAuthLoading(false);
     };
 
     void loadSession();
@@ -38,7 +49,15 @@ export default function CreateCharacterPage() {
     return () => {
       isCancelled = true;
     };
-  }, []);
+  }, [router]);
+
+  if (authLoading) {
+    return (
+      <main className="flex min-h-screen items-center justify-center bg-[linear-gradient(180deg,#f1fbff_0%,#edf7ff_18%,#ffffff_100%)] px-4">
+        <div className="rounded-2xl border border-sky-100 bg-white px-5 py-4 text-slate-600 shadow-sm">載入中...</div>
+      </main>
+    );
+  }
 
   return (
     <main className="min-h-screen bg-[linear-gradient(180deg,#f1fbff_0%,#edf7ff_18%,#ffffff_100%)] px-4 py-8 text-slate-800 sm:px-6 lg:px-8">

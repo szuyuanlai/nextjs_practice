@@ -1,8 +1,61 @@
+"use client";
+
 import Link from "next/link";
+import { useRouter } from "next/navigation";
+import { useEffect, useState } from "react";
 import { ArrowLeft, Sparkles } from "lucide-react";
 import { OrderForm } from "@/src/components/OrderForm";
+import { getSupabaseClient } from "@/src/lib/supabase/client";
 
 export default function CreateCharacterPage() {
+  const router = useRouter();
+  const [authLoading, setAuthLoading] = useState(true);
+
+  useEffect(() => {
+    let isCancelled = false;
+
+    const guardPage = async () => {
+      const client = getSupabaseClient();
+
+      if (!client) {
+        if (!isCancelled) {
+          setAuthLoading(false);
+        }
+        return;
+      }
+
+      const {
+        data: { user },
+      } = await client.auth.getUser();
+
+      if (isCancelled) {
+        return;
+      }
+
+      if (!user) {
+        window.alert("請先登入帳號以使用此功能");
+        router.push("/login");
+        return;
+      }
+
+      setAuthLoading(false);
+    };
+
+    void guardPage();
+
+    return () => {
+      isCancelled = true;
+    };
+  }, [router]);
+
+  if (authLoading) {
+    return (
+      <main className="flex min-h-screen items-center justify-center bg-[linear-gradient(180deg,#f1fbff_0%,#edf7ff_18%,#ffffff_100%)] px-4">
+        <div className="rounded-2xl border border-sky-100 bg-white px-5 py-4 text-slate-600 shadow-sm">載入中...</div>
+      </main>
+    );
+  }
+
   return (
     <main className="min-h-screen bg-[linear-gradient(180deg,#f1fbff_0%,#edf7ff_18%,#ffffff_100%)] px-4 py-8 text-slate-800 sm:px-6 lg:px-8">
       <div className="mx-auto max-w-6xl">
