@@ -8,9 +8,11 @@ import {
   ClipboardList,
   LogIn,
   LogOut,
+  Menu,
   Sparkles,
   UserCircle2,
   UserRound,
+  X,
 } from "lucide-react";
 import { OrderHistoryModal } from "@/src/components/OrderHistoryModal";
 import { supabase } from "@/src/lib/supabase/client";
@@ -36,6 +38,7 @@ export function Navbar() {
   const [isLoading, setIsLoading] = useState(supabase !== null);
   const [isMenuOpen, setIsMenuOpen] = useState(false);
   const [isOrderModalOpen, setIsOrderModalOpen] = useState(false);
+  const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
   const protectedNavPaths = new Set(["/characters", "/characters/create", "/orders"]);
 
   useEffect(() => {
@@ -110,6 +113,7 @@ export function Navbar() {
 
       if (event === "SIGNED_OUT" || !nextUser) {
         setRole(null);
+        setIsMobileMenuOpen(false);
         return;
       }
 
@@ -198,6 +202,7 @@ export function Navbar() {
 
     setUser(null);
     setIsMenuOpen(false);
+    setIsMobileMenuOpen(false);
   };
 
   const handleOrderQuery = () => {
@@ -208,6 +213,7 @@ export function Navbar() {
 
     setIsOrderModalOpen(true);
     setIsMenuOpen(false);
+    setIsMobileMenuOpen(false);
   };
 
   const handleNavLinkClick = (event: ReactMouseEvent<HTMLAnchorElement>, href: string) => {
@@ -223,7 +229,10 @@ export function Navbar() {
     if (!user) {
       event.preventDefault();
       window.location.href = `/login?redirectTo=${encodeURIComponent(href)}`;
+      return;
     }
+
+    setIsMobileMenuOpen(false);
   };
 
   const rawAvatarUrl = user?.user_metadata?.avatar_url as string | undefined;
@@ -241,6 +250,7 @@ export function Navbar() {
     { label: "訂製流程", href: "/#process" },
     { label: "創建角色", href: "/characters/create" },
     { label: "我的角色", href: "/characters" },
+    { label: "周邊購買", href: "/shop" },
     { label: "合作繪師", href: "/artists" },
     { label: "訂單查詢", href: "/orders" },
   ] as const;
@@ -271,7 +281,7 @@ export function Navbar() {
             ))}
           </nav>
 
-          <div className="flex items-center gap-2 sm:gap-3">
+          <div className="hidden items-center gap-2 sm:gap-3 md:flex">
             {isLoading ? (
               <div className="h-10 w-32 animate-pulse rounded-full bg-sky-100" />
             ) : user ? (
@@ -341,8 +351,101 @@ export function Navbar() {
               </Link>
             )}
           </div>
+
+          <button
+            type="button"
+            className="inline-flex h-10 w-10 items-center justify-center rounded-xl border border-sky-200 bg-white text-slate-700 shadow-sm transition hover:bg-sky-50 md:hidden"
+            aria-label="開啟選單"
+            onClick={() => setIsMobileMenuOpen(true)}
+          >
+            <Menu className="h-5 w-5" />
+          </button>
         </div>
       </header>
+
+      {isMobileMenuOpen ? (
+        <div className="fixed inset-0 z-[70] md:hidden" role="dialog" aria-modal="true">
+          <button
+            type="button"
+            className="absolute inset-0 bg-slate-900/40"
+            aria-label="關閉選單"
+            onClick={() => setIsMobileMenuOpen(false)}
+          />
+
+          <aside className="absolute right-0 top-0 flex h-full w-[84%] max-w-xs flex-col border-l border-sky-100 bg-white p-4 shadow-2xl">
+            <div className="mb-4 flex items-center justify-between">
+              <span className="text-sm font-semibold tracking-wide text-slate-700">選單</span>
+              <button
+                type="button"
+                className="inline-flex h-9 w-9 items-center justify-center rounded-lg border border-slate-200 text-slate-600"
+                aria-label="關閉選單"
+                onClick={() => setIsMobileMenuOpen(false)}
+              >
+                <X className="h-4 w-4" />
+              </button>
+            </div>
+
+            <nav className="flex flex-col gap-1">
+              {navItems.map((item) => (
+                <Link
+                  key={item.href}
+                  href={item.href}
+                  onClick={(event) => handleNavLinkClick(event, item.href)}
+                  className="rounded-xl px-3 py-2.5 text-sm font-medium text-slate-700 transition hover:bg-sky-50 hover:text-sky-700"
+                >
+                  {item.label}
+                </Link>
+              ))}
+            </nav>
+
+            <div className="mt-4 border-t border-slate-200 pt-4">
+              {isLoading ? (
+                <div className="h-10 w-full animate-pulse rounded-xl bg-sky-100" />
+              ) : user ? (
+                <div className="space-y-2">
+                  <Link
+                    href="/profile"
+                    className="flex items-center gap-2 rounded-xl px-3 py-2.5 text-sm font-medium text-slate-700 transition hover:bg-sky-50"
+                    onClick={() => setIsMobileMenuOpen(false)}
+                  >
+                    <UserCircle2 className="h-4 w-4" />
+                    個人資料
+                  </Link>
+
+                  {(normalizedRole === "ARTIST" || normalizedRole === "ADMIN") && (
+                    <Link
+                      href="/artist/dashboard"
+                      className="flex items-center gap-2 rounded-xl px-3 py-2.5 text-sm font-medium text-sky-700 transition hover:bg-sky-50"
+                      onClick={() => setIsMobileMenuOpen(false)}
+                    >
+                      <UserRound className="h-4 w-4" />
+                      繪師後台
+                    </Link>
+                  )}
+
+                  <button
+                    type="button"
+                    onClick={handleLogout}
+                    className="flex w-full items-center gap-2 rounded-xl bg-slate-900 px-3 py-2.5 text-left text-sm font-medium text-white transition hover:bg-slate-700"
+                  >
+                    <LogOut className="h-4 w-4" />
+                    登出
+                  </button>
+                </div>
+              ) : (
+                <Link
+                  href="/login"
+                  className="inline-flex w-full items-center justify-center gap-2 rounded-xl border border-sky-300 bg-white px-4 py-2.5 text-sm font-semibold text-sky-600 shadow-sm transition hover:bg-sky-50"
+                  onClick={() => setIsMobileMenuOpen(false)}
+                >
+                  <LogIn className="h-4 w-4" />
+                  登入
+                </Link>
+              )}
+            </div>
+          </aside>
+        </div>
+      ) : null}
     </>
   );
 }
