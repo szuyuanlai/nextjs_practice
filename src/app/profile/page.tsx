@@ -83,10 +83,10 @@ export default function ProfilePage() {
         setFullName(nextProfile?.full_name ?? "");
         setBio(nextProfile?.bio ?? "");
       } else {
-        const nextProfile = existingProfile as ArtistProfile | null;
+        const nextProfile = existingProfile as ProfileRecord;
         setProfile(nextProfile);
-        setFullName(nextProfile?.full_name ?? "");
-        setBio(nextProfile?.bio ?? "");
+        setFullName(nextProfile.full_name ?? "");
+        setBio(nextProfile.bio ?? "");
       }
       setLoading(false);
     };
@@ -109,15 +109,11 @@ export default function ProfilePage() {
         })
         .eq("id", profile.id);
 
-          console.log("Checking profile for user:", user.id);
-
       if (error) {
         throw new Error(error.message);
       }
 
       setProfile((current) => ({ ...(current ?? profile), full_name: fullName.trim(), bio }));
-
-          console.log("Existing profile result:", existingProfile, "Error:", profileError);
       alert("儲存成功");
     } catch (error) {
       console.error("Save profile failed:", error);
