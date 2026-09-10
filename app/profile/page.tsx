@@ -6,6 +6,7 @@ import { useRouter } from "next/navigation";
 import { ArrowLeft, Loader2, Save, UploadCloud, UserCircle2 } from "lucide-react";
 import { supabase } from "@/src/lib/supabase/client";
 import { uploadFileToBucket } from "@/src/lib/artist-data";
+import FileUploadField from "@/src/components/FileUploadField";
 import type { ArtistProfile } from "@/src/types/artist";
 
 const STORAGE_FALLBACKS = ["avatars", "artist-assets"] as const;
@@ -213,11 +214,13 @@ export default function ProfilePage() {
                 </div>
 
                 <div className="flex-1">
-                  <input
-                    type="file"
+                  <FileUploadField
+                    id="profile-avatar-upload"
                     accept="image/*"
-                    onChange={(event) => setAvatarFile(event.target.files?.[0] ?? null)}
-                    className="block w-full text-sm text-slate-600 file:mr-3 file:rounded-full file:border-0 file:bg-sky-600 file:px-3 file:py-2 file:text-sm file:font-semibold file:text-white hover:file:bg-sky-700"
+                    files={avatarFile ? [avatarFile] : []}
+                    onFilesChange={(files) => setAvatarFile(files[0] ?? null)}
+                    buttonText="上傳圖片"
+                    emptyText="未選擇任何檔案"
                   />
 
                   <button

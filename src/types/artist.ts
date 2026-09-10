@@ -3,6 +3,7 @@ export type ArtistProfile = {
   full_name?: string | null;
   display_name?: string | null;
   avatar_url?: string | null;
+  banner_url?: string | null;
   bio?: string | null;
   role?: string | null;
   status?: "idle" | "busy" | "closed" | null;

@@ -48,22 +48,20 @@ export default function HomePage() {
         <Navbar />
 
         <div className="mx-auto max-w-7xl px-4 py-8 sm:px-6 lg:px-8 lg:py-12">
-          <section className="mb-12 grid items-center gap-8 rounded-[32px] border border-sky-100 bg-white/80 p-6 shadow-[0_20px_60px_rgba(59,130,246,0.08)] backdrop-blur-sm sm:p-8 lg:grid-cols-[1.15fr_0.85fr] lg:p-10">
-            <div className="space-y-6">
+          <section className="mb-12 rounded-[32px] border border-sky-100 bg-white/80 p-6 shadow-[0_20px_60px_rgba(59,130,246,0.08)] backdrop-blur-sm sm:p-8 lg:p-12">
+            <div className="max-w-4xl space-y-7">
               <div className="inline-flex items-center gap-2 rounded-full border border-sky-200 bg-sky-50 px-3 py-1.5 text-[11px] font-semibold uppercase tracking-[0.2em] text-sky-700">
                 <span className="h-2 w-2 rounded-full bg-sky-500" />
                 角色設計工作室
               </div>
 
-              <div className="space-y-4">
-                <h1 className="text-4xl font-black tracking-tight text-slate-900 sm:text-5xl lg:text-6xl">
+              <div className="space-y-5">
+                <h1 className="text-5xl font-black tracking-tight text-slate-900 sm:text-6xl lg:text-7xl">
                   設計出專屬於你的 <br />
                   <span className="bg-gradient-to-r from-sky-500 via-cyan-500 to-blue-600 bg-clip-text text-transparent">二次元角色</span>
-                  
-                  
                 </h1>
 
-                <p className="max-w-xl text-lg leading-8 text-slate-600">
+                <p className="max-w-3xl text-xl leading-9 text-slate-600">
                   我們提供服務方案、訂製流程、聯名畫師協作與訂單查詢系統，讓每個角色設定、作品創作與品牌延伸都能順暢落地。
                 </p>
               </div>
@@ -83,30 +81,6 @@ export default function HomePage() {
                 >
                   訂單查詢
                 </button>
-              </div>
-            </div>
-
-            <div className="grid gap-4 rounded-[28px] border border-sky-100 bg-gradient-to-br from-sky-50 via-white to-blue-50 p-5 shadow-[0_25px_60px_rgba(14,116,144,0.08)]">
-              <div className="grid gap-4 sm:grid-cols-2">
-                <div className="rounded-2xl border border-sky-200 bg-white p-4 shadow-sm">
-                  <p className="text-sm text-sky-700">客製專案</p>
-                  <p className="mt-3 text-3xl font-black text-slate-900">120+</p>
-                </div>
-                <div className="rounded-2xl border border-cyan-200 bg-cyan-50 p-4 shadow-sm">
-                  <p className="text-sm text-cyan-700">平均交付</p>
-                  <p className="mt-3 text-3xl font-black text-slate-900">7天</p>
-                </div>
-                <div className="rounded-2xl border border-blue-200 bg-blue-50 p-4 sm:col-span-2">
-                  <p className="text-sm text-blue-700">專案方向</p>
-                  <p className="mt-3 text-lg font-semibold text-slate-800">
-                    角色設計、人物設定、品牌聯名、作品延伸設計
-                  </p>
-                </div>
-              </div>
-
-              <div className="flex items-center gap-3 rounded-2xl border border-sky-200 bg-white p-3 text-sm text-slate-600">
-                <BadgeCheck className="h-5 w-5 text-emerald-500" />
-                視覺稿件與需求流程皆可追蹤，會員登入後可直接查看訂單進度。
               </div>
             </div>
           </section>

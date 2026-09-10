@@ -5,6 +5,7 @@ import React, { Suspense, useEffect, useMemo, useState } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import { ArrowLeft, ArrowRight, CheckCircle2, Sparkles, Upload } from "lucide-react";
 import { getSupabaseClient } from "@/src/lib/supabase/client";
+import FileUploadField from "@/src/components/FileUploadField";
 
 type Step = 1 | 2 | 3 | 4;
 
@@ -65,10 +66,9 @@ function NewOrderPageContent() {
   const next = () => setStep((current) => (current < 4 ? ((current + 1) as Step) : current));
   const prev = () => setStep((current) => (current > 1 ? ((current - 1) as Step) : current));
 
-  const handleRefFiles = (event: React.ChangeEvent<HTMLInputElement>) => {
-    const files = event.target.files;
-    if (!files) return;
-    setRefs((current) => [...current, ...Array.from(files)]);
+  const handleRefFiles = (files: File[]) => {
+    if (!files.length) return;
+    setRefs(files);
   };
 
   const compressImage = (file: File, maxWidth = 1600, quality = 0.8): Promise<File> =>
@@ -385,7 +385,16 @@ function NewOrderPageContent() {
                   <Upload className="h-5 w-5" />
                   <span className="font-semibold">參考圖上傳</span>
                 </div>
-                <input type="file" multiple accept="image/*" onChange={handleRefFiles} className="mt-4 w-full text-sm text-slate-600" />
+                <FileUploadField
+                  id="new-order-reference-upload"
+                  accept="image/*"
+                  multiple
+                  files={refs}
+                  onFilesChange={handleRefFiles}
+                  buttonText="上傳圖片"
+                  emptyText="未選擇任何檔案"
+                  className="mt-4"
+                />
               </div>
 
               {refPreviews.length > 0 ? (

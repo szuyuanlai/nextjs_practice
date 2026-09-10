@@ -1,10 +1,11 @@
 "use client";
 
 import Link from "next/link";
-import { ChangeEvent, useEffect, useState } from "react";
+import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import { ArrowLeft, Loader2, Save, UploadCloud, UserCircle2 } from "lucide-react";
 import { supabase } from "@/src/lib/supabase/client";
+import FileUploadField from "@/src/components/FileUploadField";
 
 const STORAGE_BUCKETS = ["avatars", "artist-assets"] as const;
 
@@ -190,11 +191,13 @@ export default function ProfilePage() {
 
               <div className="mt-5">
                 <label className="mb-2 block text-sm font-semibold text-slate-700">上傳大頭照</label>
-                <input
-                  type="file"
+                <FileUploadField
+                  id="src-profile-avatar-upload"
                   accept="image/*"
-                  onChange={(event: ChangeEvent<HTMLInputElement>) => setAvatarFile(event.target.files?.[0] ?? null)}
-                  className="block w-full text-sm text-slate-600 file:mr-3 file:rounded-full file:border-0 file:bg-slate-900 file:px-3 file:py-2 file:text-sm file:font-semibold file:text-white hover:file:bg-slate-700"
+                  files={avatarFile ? [avatarFile] : []}
+                  onFilesChange={(files) => setAvatarFile(files[0] ?? null)}
+                  buttonText="上傳圖片"
+                  emptyText="未選擇任何檔案"
                 />
                 <button
                   type="button"

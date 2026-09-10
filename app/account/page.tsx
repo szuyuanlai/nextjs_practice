@@ -6,7 +6,6 @@ import type { User } from "@supabase/supabase-js";
 import {
   ArrowLeft,
   Briefcase,
-  ImagePlus,
   Loader2,
   Mail,
   Save,
@@ -17,13 +16,16 @@ import {
 } from "lucide-react";
 import { supabase } from "@/src/lib/supabase/client";
 import { uploadFileToBucket } from "@/src/lib/artist-data";
-import type { ArtistProfile, PortfolioItem } from "@/src/types/artist";
+import FileUploadField from "@/src/components/FileUploadField";
+import type { PortfolioItem } from "@/src/types/artist";
 
 type ProfileRow = {
   id?: string;
   role?: string | null;
   full_name?: string | null;
+  display_name?: string | null;
   avatar_url?: string | null;
+  banner_url?: string | null;
   bio?: string | null;
   status?: "idle" | "busy" | "closed" | null;
 };
@@ -43,7 +45,9 @@ export default function AccountPage() {
   const [bio, setBio] = useState("");
   const [status, setStatus] = useState<"idle" | "busy" | "closed">("idle");
   const [avatarFile, setAvatarFile] = useState<File | null>(null);
+  const [bannerFile, setBannerFile] = useState<File | null>(null);
   const [avatarUploading, setAvatarUploading] = useState(false);
+  const [bannerUploading, setBannerUploading] = useState(false);
   const [saving, setSaving] = useState(false);
   const [portfolioFiles, setPortfolioFiles] = useState<File[]>([]);
   const [portfolioUploading, setPortfolioUploading] = useState(false);
@@ -77,7 +81,9 @@ export default function AccountPage() {
         id: data.user.id,
         role: ((data.user.user_metadata?.role as string | undefined) ?? "CLIENT").toUpperCase(),
         full_name: (data.user.user_metadata?.full_name as string | undefined) ?? (data.user.user_metadata?.name as string | undefined) ?? "",
+        display_name: (data.user.user_metadata?.preferred_username as string | undefined) ?? null,
         avatar_url: (data.user.user_metadata?.avatar_url as string | undefined) ?? null,
+        banner_url: null,
         bio: "",
         status: "idle",
       };
@@ -102,12 +108,18 @@ export default function AccountPage() {
   }, []);
 
   const avatarUrl = (profile?.avatar_url ?? (user?.user_metadata?.avatar_url as string | undefined)) ?? undefined;
+  const bannerUrl = profile?.banner_url ?? undefined;
   const displayName =
     profile?.full_name ??
+    profile?.display_name ??
     (user?.user_metadata?.full_name as string | undefined) ??
+    (user?.user_metadata?.preferred_username as string | undefined) ??
     (user?.user_metadata?.name as string | undefined) ??
     user?.email?.split("@")[0] ??
     "使用者";
+
+  const provider = String(user?.app_metadata?.provider ?? "").toLowerCase();
+  const providerLabel = provider === "x" ? "X (Twitter)" : provider === "google" ? "Google" : "OAuth";
 
   const roleLabel = role === "ARTIST" ? "繪師" : role === "ADMIN" ? "管理者" : "會員";
 
@@ -160,6 +172,31 @@ export default function AccountPage() {
       alert("大頭貼更新失敗，請稍後再試。");
     } finally {
       setAvatarUploading(false);
+    }
+  };
+
+  const handleBannerUpload = async () => {
+    if (!supabase || !profile || !bannerFile) return;
+
+    setBannerUploading(true);
+    try {
+      const path = `${profile.id ?? user?.id}/banner-${Date.now()}-${bannerFile.name}`;
+      const { publicUrl } = await uploadFileToBucket(supabase, STORAGE_FALLBACKS, bannerFile, path);
+
+      const { error } = await supabase
+        .from("profiles")
+        .update({ banner_url: publicUrl })
+        .eq("id", profile.id ?? user?.id);
+
+      if (error) throw new Error(error.message);
+
+      setProfile((current) => ({ ...(current ?? profile), banner_url: publicUrl }));
+      setBannerFile(null);
+    } catch (error) {
+      console.error("Upload banner failed:", error);
+      alert("背景圖更新失敗，請稍後再試。若欄位不存在，請先在資料庫建立 profiles.banner_url。\nALTER TABLE public.profiles ADD COLUMN IF NOT EXISTS banner_url text;");
+    } finally {
+      setBannerUploading(false);
     }
   };
 
@@ -277,7 +314,7 @@ export default function AccountPage() {
           <div className="rounded-[30px] border border-slate-200 bg-white p-10 text-center shadow-sm">
             <UserCircle2 className="mx-auto mb-4 h-12 w-12 text-sky-500" />
             <h1 className="text-2xl font-black text-slate-900">尚未登入</h1>
-            <p className="mt-3 text-slate-600">請先使用 Google 登入，才可查看帳號與訂單資料。</p>
+            <p className="mt-3 text-slate-600">請先登入，才可查看帳號與訂單資料。</p>
             <Link href="/" className="mt-6 inline-flex rounded-full bg-sky-600 px-5 py-3 font-semibold text-white hover:bg-sky-700">
               回首頁登入
             </Link>
@@ -302,7 +339,7 @@ export default function AccountPage() {
 
                 <div className="flex flex-wrap items-center gap-3">
                   <span className="rounded-full border border-emerald-200 bg-emerald-50 px-3 py-1.5 text-sm font-semibold text-emerald-700">
-                    Google 已驗證
+                    {providerLabel} 已驗證
                   </span>
                   <span className="rounded-full border border-sky-200 bg-sky-50 px-3 py-1.5 text-sm font-semibold text-sky-700">
                     {role === "ARTIST" ? "繪師帳號" : role === "ADMIN" ? "管理者帳號" : "會員帳號"}
@@ -315,7 +352,7 @@ export default function AccountPage() {
               <div className="rounded-[24px] border border-slate-200 bg-white p-5 shadow-sm">
                 <p className="text-xs font-semibold uppercase tracking-[0.2em] text-slate-500">登入方式</p>
                 <div className="mt-4 flex items-center justify-between">
-                  <span className="text-2xl font-black text-slate-900">Google</span>
+                  <span className="text-2xl font-black text-slate-900">{providerLabel}</span>
                   <ShieldCheck className="h-5 w-5 text-emerald-500" />
                 </div>
               </div>
@@ -430,11 +467,13 @@ export default function AccountPage() {
                         </div>
 
                         <div>
-                          <input
-                            type="file"
+                          <FileUploadField
+                            id="account-avatar-upload"
                             accept="image/*"
-                            onChange={(event) => setAvatarFile(event.target.files?.[0] ?? null)}
-                            className="block w-full cursor-pointer text-sm text-slate-600 file:mr-3 file:rounded-full file:border-0 file:bg-slate-900 file:px-4 file:py-2 file:text-sm file:font-semibold file:text-white hover:file:bg-slate-700"
+                            files={avatarFile ? [avatarFile] : []}
+                            onFilesChange={(files) => setAvatarFile(files[0] ?? null)}
+                            buttonText="上傳圖片"
+                            emptyText="未選擇任何檔案"
                           />
                           <button
                             type="button"
@@ -446,6 +485,37 @@ export default function AccountPage() {
                             {avatarUploading ? "上傳中..." : "更新頭像"}
                           </button>
                         </div>
+                      </div>
+
+                      <div>
+                        <label className="mb-2 block text-sm font-semibold text-slate-700">個人頁背景圖（Banner）</label>
+                        <div className="overflow-hidden rounded-2xl border border-slate-200 bg-slate-100">
+                          {bannerUrl ? (
+                            <img src={bannerUrl} alt="profile banner" className="h-36 w-full object-cover" />
+                          ) : (
+                            <div className="flex h-36 items-center justify-center text-sm text-slate-500">尚未設定背景圖片</div>
+                          )}
+                        </div>
+
+                        <FileUploadField
+                          id="account-banner-upload"
+                          accept="image/*"
+                          files={bannerFile ? [bannerFile] : []}
+                          onFilesChange={(files) => setBannerFile(files[0] ?? null)}
+                          buttonText="上傳圖片"
+                          emptyText="未選擇任何檔案"
+                          className="mt-3"
+                        />
+
+                        <button
+                          type="button"
+                          onClick={handleBannerUpload}
+                          disabled={!bannerFile || bannerUploading}
+                          className="mt-3 inline-flex items-center gap-2 rounded-full bg-slate-900 px-4 py-2 text-sm font-semibold text-white hover:bg-slate-700 disabled:cursor-not-allowed disabled:bg-slate-300"
+                        >
+                          <UploadCloud className="h-4 w-4" />
+                          {bannerUploading ? "上傳中..." : "更新背景圖"}
+                        </button>
                       </div>
 
                       <div>
@@ -519,27 +589,15 @@ export default function AccountPage() {
                       </div>
 
                       <div className="rounded-2xl border border-dashed border-slate-300 bg-white p-5">
-                        <label className="flex cursor-pointer flex-col items-center justify-center gap-2 rounded-2xl border border-slate-200 bg-slate-50 p-6 text-center text-slate-600">
-                          <ImagePlus className="h-8 w-8 text-sky-600" />
-                          <span className="text-sm font-medium">點擊上傳作品圖片</span>
-                          <input
-                            type="file"
-                            multiple
-                            accept="image/*"
-                            onChange={(event) => setPortfolioFiles(Array.from(event.target.files ?? []))}
-                            className="hidden"
-                          />
-                        </label>
-
-                        {portfolioFiles.length > 0 ? (
-                          <div className="mt-4 flex flex-wrap gap-2">
-                            {portfolioFiles.map((file, index) => (
-                              <span key={`${file.name}-${index}`} className="rounded-full bg-sky-100 px-3 py-1 text-xs font-semibold text-sky-700">
-                                {file.name}
-                              </span>
-                            ))}
-                          </div>
-                        ) : null}
+                        <FileUploadField
+                          id="account-portfolio-upload"
+                          accept="image/*"
+                          multiple
+                          files={portfolioFiles}
+                          onFilesChange={setPortfolioFiles}
+                          buttonText="上傳圖片"
+                          emptyText="未選擇任何檔案"
+                        />
                       </div>
 
                       <div className="flex justify-start">

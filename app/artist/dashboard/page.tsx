@@ -20,6 +20,7 @@ import {
 } from "lucide-react";
 import { supabase } from "@/src/lib/supabase/client";
 import { uploadFileToBucket } from "@/src/lib/artist-data";
+import FileUploadField from "@/src/components/FileUploadField";
 import type { ArtistProfile, PortfolioItem } from "@/src/types/artist";
 
 type StatusOption = "idle" | "busy" | "closed";
@@ -463,11 +464,13 @@ export default function ArtistDashboardPage() {
               </div>
 
               <div className="flex-1">
-                <input
-                  type="file"
+                <FileUploadField
+                  id="artist-dashboard-avatar-upload"
                   accept="image/*"
-                  onChange={(event) => setAvatarFile(event.target.files?.[0] ?? null)}
-                  className="block w-full text-sm text-slate-600 file:mr-3 file:rounded-full file:border-0 file:bg-sky-600 file:px-3 file:py-2 file:text-sm file:font-semibold file:text-white"
+                  files={avatarFile ? [avatarFile] : []}
+                  onFilesChange={(files) => setAvatarFile(files[0] ?? null)}
+                  buttonText="上傳圖片"
+                  emptyText="未選擇任何檔案"
                 />
                 <button
                   type="button"
@@ -554,12 +557,14 @@ export default function ArtistDashboardPage() {
             <div className="flex flex-col gap-4 md:flex-row md:items-end">
               <div className="flex-1">
                 <label className="mb-2 block text-sm font-semibold text-slate-700">上傳新作品</label>
-                <input
-                  type="file"
+                <FileUploadField
+                  id="artist-dashboard-portfolio-upload"
                   accept="image/*"
                   multiple
-                  onChange={(event) => setPortfolioFiles(Array.from(event.target.files ?? []))}
-                  className="block w-full text-sm text-slate-600 file:mr-3 file:rounded-full file:border-0 file:bg-sky-600 file:px-3 file:py-2 file:text-sm file:font-semibold file:text-white"
+                  files={portfolioFiles}
+                  onFilesChange={setPortfolioFiles}
+                  buttonText="上傳圖片"
+                  emptyText="未選擇任何檔案"
                 />
               </div>
 

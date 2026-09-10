@@ -3,6 +3,7 @@
 import React, { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import { supabase } from "@/src/lib/supabase/client";
+import FileUploadField from "@/src/components/FileUploadField";
 import type { ArtistProfile, PortfolioItem } from "@/src/types/artist";
 
 const BUCKET = "artist-assets";
@@ -14,6 +15,7 @@ export default function ArtistProfilePage() {
   const [fullName, setFullName] = useState("");
   const [bio, setBio] = useState("");
   const [status, setStatus] = useState<"idle" | "busy" | "closed">("idle");
+  const [portfolioFiles, setPortfolioFiles] = useState<File[]>([]);
   const [portfolios, setPortfolios] = useState<PortfolioItem[]>([]);
   const [uploading, setUploading] = useState(false);
   const router = useRouter();
@@ -58,9 +60,8 @@ export default function ArtistProfilePage() {
     void load();
   }, [router]);
 
-  const handleAvatarChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    const f = e.target.files?.[0] ?? null;
-    setAvatarFile(f);
+  const handleAvatarChange = (files: File[]) => {
+    setAvatarFile(files[0] ?? null);
   };
 
   const uploadAvatar = async () => {
@@ -118,9 +119,9 @@ export default function ArtistProfilePage() {
     setPortfolios((items as PortfolioItem[]) ?? []);
   };
 
-  const handlePortfolioFiles = async (e: React.ChangeEvent<HTMLInputElement>) => {
-    const files = e.target.files;
-    if (!files || !profile || !supabase) return;
+  const handlePortfolioFiles = async (files: File[]) => {
+    setPortfolioFiles(files);
+    if (!files.length || !profile || !supabase) return;
 
     setUploading(true);
     const added: PortfolioItem[] = [];
@@ -164,6 +165,7 @@ export default function ArtistProfilePage() {
 
     await fetchPortfolios(profile.id);
     setUploading(false);
+    setPortfolioFiles([]);
   };
 
   const handleDeletePortfolio = async (item: PortfolioItem) => {
@@ -209,7 +211,14 @@ export default function ArtistProfilePage() {
           </div>
 
           <div className="flex flex-col gap-2">
-            <input type="file" accept="image/*" onChange={handleAvatarChange} />
+            <FileUploadField
+              id="artist-profile-avatar-upload"
+              accept="image/*"
+              files={avatarFile ? [avatarFile] : []}
+              onFilesChange={handleAvatarChange}
+              buttonText="上傳圖片"
+              emptyText="未選擇任何檔案"
+            />
             <div className="flex gap-2">
               <button
                 className="rounded bg-sky-600 px-3 py-1 text-white"
@@ -276,7 +285,17 @@ export default function ArtistProfilePage() {
 
       <section className="mb-6">
         <h2 className="font-semibold mb-2">作品集上傳</h2>
-        <input type="file" multiple accept="image/*" onChange={handlePortfolioFiles} />
+        <FileUploadField
+          id="artist-profile-portfolio-upload"
+          accept="image/*"
+          multiple
+          files={portfolioFiles}
+          onFilesChange={(files) => {
+            void handlePortfolioFiles(files);
+          }}
+          buttonText="上傳圖片"
+          emptyText="未選擇任何檔案"
+        />
         {uploading ? <div className="text-sm text-slate-500 mt-2">上傳中…</div> : null}
       </section>
 

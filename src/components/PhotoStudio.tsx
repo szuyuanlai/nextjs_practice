@@ -1,6 +1,7 @@
 "use client";
 
 import React, { useEffect, useRef, useState } from "react";
+import FileUploadField from "@/src/components/FileUploadField";
 
 type Overlay = {
   src: string;
@@ -14,6 +15,7 @@ export default function PhotoStudio({ initialOverlay }: { initialOverlay?: strin
   const canvasRef = useRef<HTMLCanvasElement | null>(null);
   const videoRef = useRef<HTMLVideoElement | null>(null);
   const [useCamera, setUseCamera] = useState(false);
+  const [bgFile, setBgFile] = useState<File | null>(null);
   const [bgImage, setBgImage] = useState<string | null>(null);
   const [overlay, setOverlay] = useState<Overlay | null>(initialOverlay ? { src: initialOverlay, x: 100, y: 50, scale: 1, rotation: 0 } : null);
   const [isDragging, setIsDragging] = useState(false);
@@ -82,9 +84,10 @@ export default function PhotoStudio({ initialOverlay }: { initialOverlay?: strin
     canvas.height = 600;
   }, []);
 
-  const handleBgUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
-    const f = e.target.files?.[0];
+  const handleBgUpload = (files: File[]) => {
+    const f = files[0];
     if (!f) return;
+    setBgFile(f);
     const url = URL.createObjectURL(f);
     setBgImage(url);
   };
@@ -116,7 +119,16 @@ export default function PhotoStudio({ initialOverlay }: { initialOverlay?: strin
     <div>
       <div className="mb-3 flex gap-3">
         <button className="px-3 py-2 rounded border" onClick={() => setUseCamera((s) => !s)}>{useCamera ? "關閉鏡頭" : "開啟鏡頭"}</button>
-        <input type="file" accept="image/*" onChange={handleBgUpload} />
+        <div className="min-w-[280px]">
+          <FileUploadField
+            id="photo-studio-bg-upload"
+            accept="image/*"
+            files={bgFile ? [bgFile] : []}
+            onFilesChange={handleBgUpload}
+            buttonText="上傳圖片"
+            emptyText="未選擇任何檔案"
+          />
+        </div>
         <button className="px-3 py-2 rounded border" onClick={() => setOverlay(initialOverlay ? { src: initialOverlay, x: 400, y: 300, scale: 1, rotation: 0 } : null)}>載入角色貼圖</button>
         <button className="px-3 py-2 rounded bg-sky-600 text-white" onClick={downloadComposite}>下載合成圖</button>
       </div>

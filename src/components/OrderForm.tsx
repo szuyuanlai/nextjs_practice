@@ -3,6 +3,7 @@
 import { useState } from "react";
 import { CheckCircle2, FileImage, Loader2, Sparkles, Upload, X } from "lucide-react";
 import { supabase } from "@/src/lib/supabase/client";
+import FileUploadField from "@/src/components/FileUploadField";
 
 export type BodySize = "XL" | "L" | "M" | "S" | "XS";
 
@@ -241,11 +242,13 @@ export function OrderForm() {
           <label className="grid gap-2 text-sm font-medium text-slate-700">
             <span>參考圖片（選填）</span>
             <div className="rounded-2xl border border-dashed border-sky-200 bg-sky-50/60 p-4">
-              <input
-                type="file"
+              <FileUploadField
+                id="order-form-reference-upload"
                 accept="image/*"
-                onChange={(event) => setSelectedFile(event.target.files?.[0] ?? null)}
-                className="block w-full text-sm text-slate-600 file:mr-4 file:rounded-full file:border-0 file:bg-sky-100 file:px-4 file:py-2 file:text-sm file:font-medium file:text-sky-700 hover:file:bg-sky-200"
+                files={selectedFile ? [selectedFile] : []}
+                onFilesChange={(files) => setSelectedFile(files[0] ?? null)}
+                buttonText="上傳圖片"
+                emptyText="未選擇任何檔案"
               />
 
               <div className="mt-3 flex items-center gap-2 text-xs text-slate-600">
