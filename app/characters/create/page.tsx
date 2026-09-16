@@ -5,12 +5,11 @@ import { useRouter } from "next/navigation";
 import { useEffect, useState } from "react";
 import { ArrowLeft, Sparkles } from "lucide-react";
 import { getSupabaseClient } from "@/src/lib/supabase/client";
-import { OrderForm } from "@/src/components/OrderForm";
+import CharacterDNAForm from "@/src/components/CharacterDNAForm";
 
 export default function CreateCharacterPage() {
   const router = useRouter();
   const [authLoading, setAuthLoading] = useState(true);
-  const [statusMessage, setStatusMessage] = useState("載入中...");
 
   useEffect(() => {
     let isCancelled = false;
@@ -20,7 +19,6 @@ export default function CreateCharacterPage() {
 
       if (!supabase) {
         if (!isCancelled) {
-          setStatusMessage("Supabase 尚未設定，已改顯示預設下單表單。");
           setAuthLoading(false);
         }
         return;
@@ -39,7 +37,6 @@ export default function CreateCharacterPage() {
         return;
       }
 
-      setStatusMessage(`目前登入使用者：${user.email ?? user.id}`);
       setAuthLoading(false);
     };
 
@@ -71,17 +68,13 @@ export default function CreateCharacterPage() {
             <Sparkles className="h-3.5 w-3.5" />
             創建角色
           </p>
-          <h1 className="text-3xl font-black tracking-tight text-slate-900">創建角色 / 三視圖下單</h1>
+          <h1 className="text-3xl font-black tracking-tight text-slate-900">創建角色 DNA 設定檔</h1>
           <p className="mt-3 max-w-3xl text-slate-600">
-            填寫角色設定、外觀需求與參考素材後，即可送出你的專屬創作需求單。
+            透過三個步驟完成角色身份、外觀與參考素材設定，送出後會自動建立角色資料。
           </p>
         </section>
 
-        <section className="mb-6 rounded-2xl border border-sky-100 bg-white px-4 py-3 shadow-sm">
-          <p className="text-sm text-slate-600">{statusMessage}</p>
-        </section>
-
-        <OrderForm />
+        <CharacterDNAForm />
       </div>
     </main>
   );

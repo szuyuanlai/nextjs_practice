@@ -4,8 +4,8 @@ import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useEffect, useState } from "react";
 import { ArrowLeft, Sparkles } from "lucide-react";
-import { OrderForm } from "@/src/components/OrderForm";
 import { getSupabaseClient } from "@/src/lib/supabase/client";
+import CharacterDNAForm from "@/src/components/CharacterDNAForm";
 
 export default function CreateCharacterPage() {
   const router = useRouter();
@@ -68,13 +68,13 @@ export default function CreateCharacterPage() {
             <Sparkles className="h-3.5 w-3.5" />
             創建角色
           </p>
-          <h1 className="text-3xl font-black tracking-tight text-slate-900">創建角色 / 三視圖下單</h1>
+          <h1 className="text-3xl font-black tracking-tight text-slate-900">創建角色 DNA 設定檔</h1>
           <p className="mt-3 max-w-3xl text-slate-600">
-            填寫角色設定、外觀需求與參考素材後，即可送出你的專屬創作需求單。
+            透過三個步驟完成角色身份、外觀與參考素材設定，送出後會自動建立角色資料。
           </p>
         </section>
 
-        <OrderForm />
+        <CharacterDNAForm />
       </div>
     </main>
   );

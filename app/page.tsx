@@ -27,9 +27,7 @@ export default function HomePage() {
                 <span className="bg-gradient-to-r from-sky-500 via-cyan-500 to-blue-600 bg-clip-text text-transparent">二次元角色</span>
               </h1>
 
-              <p className="max-w-3xl text-xl leading-9 text-slate-600">
-                首頁僅保留品牌主視覺與導覽入口，所有建立角色、訂單查詢與繪師合作功能皆移至對應二層頁面。
-              </p>
+              
             </div>
 
             <div className="flex flex-wrap gap-3">
