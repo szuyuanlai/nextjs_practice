@@ -19,6 +19,33 @@ type CharacterListItem = {
 
 type CharacterTab = "completed" | "in_progress";
 
+function normalizeCharacterStatus(status: string | null) {
+  if (status === "completed") {
+    return "completed";
+  }
+  if (status === "in_progress") {
+    return "in_progress";
+  }
+  if (status === "draft") {
+    return "draft";
+  }
+  return "draft";
+}
+
+function getStatusBadgeLabel(status: string | null) {
+  const normalizedStatus = normalizeCharacterStatus(status);
+
+  if (normalizedStatus === "completed") {
+    return "已完成";
+  }
+
+  if (normalizedStatus === "in_progress") {
+    return "製作中";
+  }
+
+  return "待處理";
+}
+
 function formatDate(iso: string) {
   const date = new Date(iso);
   if (Number.isNaN(date.getTime())) {
@@ -110,12 +137,12 @@ export default function CharactersListView() {
   }, [router]);
 
   const completedCharacters = useMemo(
-    () => characters.filter((item) => (item.status ?? "in_progress") === "completed"),
+    () => characters.filter((item) => normalizeCharacterStatus(item.status) === "completed"),
     [characters],
   );
 
   const inProgressCharacters = useMemo(
-    () => characters.filter((item) => (item.status ?? "in_progress") === "in_progress"),
+    () => characters.filter((item) => normalizeCharacterStatus(item.status) !== "completed"),
     [characters],
   );
 
@@ -193,7 +220,9 @@ export default function CharactersListView() {
               const themeColor = readAppearanceTextFromKeys(appearance, ["theme_color"], "#7dd3fc");
               const artistName = readAppearanceTextFromKeys(appearance, ["selected_artist_name"], "尚未指派");
               const thumbnailUrl = character.image_urls?.[0] ?? "";
-              const isCompleted = (character.status ?? "in_progress") === "completed";
+              const normalizedStatus = normalizeCharacterStatus(character.status);
+              const isCompleted = normalizedStatus === "completed";
+              const statusBadgeLabel = getStatusBadgeLabel(character.status);
 
               return (
                 <article
@@ -232,7 +261,7 @@ export default function CharactersListView() {
                           : "bg-amber-100 text-amber-700",
                       ].join(" ")}
                     >
-                      {isCompleted ? "已完成" : "繪製中"}
+                      {statusBadgeLabel}
                     </div>
                   </div>
 
@@ -259,7 +288,7 @@ export default function CharactersListView() {
                         </span>
                       ) : (
                         <span className="rounded-full border border-amber-200 bg-amber-50 px-2.5 py-1 text-[11px] font-semibold text-amber-700">
-                          製作進行中
+                          {normalizedStatus === "draft" ? "等待開始製作" : "製作進行中"}
                         </span>
                       )}
                     </div>

@@ -265,7 +265,7 @@ export function Navbar() {
             <div className="flex h-10 w-10 items-center justify-center rounded-2xl bg-gradient-to-br from-sky-500 via-cyan-500 to-blue-600 shadow-lg shadow-sky-200">
               <Sparkles className="h-5 w-5 text-white" />
             </div>
-            <span className="text-xl font-black tracking-tight text-slate-900">TONE</span>
+            <span className="text-xl font-black tracking-tight text-slate-900">szuyuanlai</span>
           </Link>
 
           <nav className="hidden items-center gap-2 text-sm font-medium text-slate-700 md:flex lg:gap-3">
