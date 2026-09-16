@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { CheckCircle2, ChevronLeft, ChevronRight, Loader2, Sparkles, X } from "lucide-react";
 import { useRouter } from "next/navigation";
 import FileUploadField from "@/src/components/FileUploadField";
@@ -14,7 +14,7 @@ type ToastState = {
 type FormState = {
   name: string;
   gender: string;
-  personalityTags: string[];
+  personalityText: string;
   bio: string;
   hairstyle: string;
   hairColor: string;
@@ -36,13 +36,13 @@ type ArtistProfile = {
   surcharge_multiplier?: number;
 };
 
-const PERSONALITY_PRESETS = ["傲嬌", "溫柔", "病嬌", "元氣", "理性", "天然", "腹黑", "冷酷"];
+const PERSONALITY_PRESETS = ["傲嬌", "病嬌", "溫柔", "天然", "腹黑", "元氣", "理性", "冷酷"];
 const STORAGE_BUCKET_CANDIDATES = ["character-references", "order-assets", "artist-assets"];
 
 const initialForm: FormState = {
   name: "",
   gender: "",
-  personalityTags: [],
+  personalityText: "",
   bio: "",
   hairstyle: "",
   hairColor: "#000000",
@@ -65,13 +65,13 @@ export default function CharacterDNAForm() {
   const [flowStep, setFlowStep] = useState<"form" | "artist">("form");
   const [form, setForm] = useState<FormState>(initialForm);
   const [referenceFiles, setReferenceFiles] = useState<File[]>([]);
-  const [customTagInput, setCustomTagInput] = useState("");
   const [showConfirmModal, setShowConfirmModal] = useState(false);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [artistsLoading, setArtistsLoading] = useState(false);
   const [artistsError, setArtistsError] = useState("");
   const [artists, setArtists] = useState<ArtistProfile[]>([]);
   const [toast, setToast] = useState<ToastState | null>(null);
+  const personalityInputRef = useRef<HTMLInputElement | null>(null);
 
   const previewUrls = useMemo(
     () =>
@@ -97,34 +97,19 @@ export default function CharacterDNAForm() {
     }));
   };
 
-  const togglePresetTag = (tag: string) => {
+  const appendPresetToPersonality = (tag: string) => {
     setForm((current) => {
-      const hasTag = current.personalityTags.includes(tag);
+      const existingText = current.personalityText.trim();
+      const nextText = existingText ? `${existingText}, ${tag}` : tag;
       return {
         ...current,
-        personalityTags: hasTag
-          ? current.personalityTags.filter((item) => item !== tag)
-          : [...current.personalityTags, tag],
-      };
-    });
-  };
-
-  const addCustomTag = () => {
-    const trimmed = customTagInput.trim();
-    if (!trimmed) return;
-
-    setForm((current) => {
-      if (current.personalityTags.includes(trimmed)) {
-        return current;
-      }
-
-      return {
-        ...current,
-        personalityTags: [...current.personalityTags, trimmed],
+        personalityText: nextText,
       };
     });
 
-    setCustomTagInput("");
+    window.setTimeout(() => {
+      personalityInputRef.current?.focus();
+    }, 0);
   };
 
   const showToast = (type: ToastState["type"], message: string) => {
@@ -297,17 +282,40 @@ export default function CharacterDNAForm() {
 
       const imageUrls = await uploadReferenceFiles(user.id);
 
+      const normalizedName = form.name.trim();
+      const normalizedGender = form.gender.trim() || null;
+      const normalizedBio = form.bio.trim() || null;
+      const normalizedPersonalityText = form.personalityText.trim();
+      const normalizedPersonalityTags = normalizedPersonalityText
+        ? normalizedPersonalityText
+            .split(/[\s,，、]+/)
+            .map((tag) => tag.trim())
+            .filter((tag) => tag.length > 0)
+        : [];
+      const normalizedHairstyle = form.hairstyle.trim() || null;
+      const normalizedHairColor = form.hairColor || "#000000";
+      const normalizedEyeStyle = form.eyeStyle.trim() || null;
+      const normalizedEyeColor = form.eyeColor || "#000000";
+      const normalizedHeightBodyType = form.heightBodyType.trim() || null;
+      const normalizedThemeColor = form.themeColor || "#4ea8de";
+      const normalizedOutfitAccessories = form.outfitAccessories.trim() || null;
+      const normalizedAdditionalNotes = form.additionalNotes.trim() || null;
+      const normalizedArtistName = selectedArtist.full_name?.trim() || null;
+      const normalizedImageUrls = Array.isArray(imageUrls)
+        ? imageUrls.filter((url): url is string => typeof url === "string" && url.length > 0)
+        : [];
+
       const appearanceDetails = {
-        hairstyle: form.hairstyle.trim() || null,
-        hair_color: form.hairColor,
-        eye_style: form.eyeStyle.trim() || null,
-        eye_color: form.eyeColor,
-        height_body_type: form.heightBodyType.trim() || null,
-        theme_color: form.themeColor,
-        outfit_accessories: form.outfitAccessories.trim() || null,
-        additional_notes: form.additionalNotes.trim() || null,
+        hairstyle: normalizedHairstyle,
+        hair_color: normalizedHairColor,
+        eye_style: normalizedEyeStyle,
+        eye_color: normalizedEyeColor,
+        height_body_type: normalizedHeightBodyType,
+        theme_color: normalizedThemeColor,
+        outfit_accessories: normalizedOutfitAccessories,
+        additional_notes: normalizedAdditionalNotes,
         selected_artist_id: selectedArtist.id,
-        selected_artist_name: selectedArtist.full_name ?? null,
+        selected_artist_name: normalizedArtistName,
       };
 
       const { data: insertedCharacter, error: insertError } = await supabase
@@ -315,12 +323,21 @@ export default function CharacterDNAForm() {
         .insert({
           user_id: user.id,
           artist_id: selectedArtist.id,
-          name: form.name.trim(),
-          gender: form.gender.trim() || null,
-          personality_tags: form.personalityTags,
-          bio: form.bio.trim() || null,
+          name: normalizedName,
+          gender: normalizedGender,
+          personality_tags: normalizedPersonalityTags,
+          bio: normalizedBio,
+          hairstyle: normalizedHairstyle,
+          hair_color: normalizedHairColor,
+          eye_style: normalizedEyeStyle,
+          eye_color: normalizedEyeColor,
+          height_body_type: normalizedHeightBodyType,
+          theme_color: normalizedThemeColor,
+          outfit_accessories: normalizedOutfitAccessories,
+          additional_notes: normalizedAdditionalNotes,
+          selected_artist_name: normalizedArtistName,
           appearance_details: appearanceDetails,
-          image_urls: imageUrls,
+          image_urls: normalizedImageUrls,
           created_at: new Date().toISOString(),
         })
         .select("id")
@@ -418,7 +435,7 @@ export default function CharacterDNAForm() {
                 <p className="mt-2 text-sm text-slate-700">角色名稱：{form.name || "未填寫"}</p>
                 <p className="mt-1 text-sm text-slate-700">性別 / 性向：{form.gender || "未填寫"}</p>
                 <p className="mt-1 text-sm text-slate-700">
-                  性格標籤：{form.personalityTags.length ? form.personalityTags.join("、") : "未設定"}
+                  性格：{form.personalityText || "未設定"}
                 </p>
                 <p className="mt-2 whitespace-pre-wrap text-sm text-slate-700">背景故事：{form.bio || "未填寫"}</p>
               </article>
@@ -512,66 +529,27 @@ export default function CharacterDNAForm() {
           </label>
 
           <div className="grid gap-3 text-sm font-medium text-slate-700">
-            <span>性格標籤</span>
+            <span>性格</span>
             <div className="flex flex-wrap gap-2">
-              {PERSONALITY_PRESETS.map((tag) => {
-                const active = form.personalityTags.includes(tag);
-                return (
-                  <button
-                    type="button"
-                    key={tag}
-                    onClick={() => togglePresetTag(tag)}
-                    className={[
-                      "rounded-full border px-3 py-1.5 text-xs font-semibold transition",
-                      active
-                        ? "border-sky-500 bg-sky-500 text-white"
-                        : "border-sky-200 bg-sky-50 text-sky-700 hover:border-sky-300",
-                    ].join(" ")}
-                  >
-                    {tag}
-                  </button>
-                );
-              })}
+              {PERSONALITY_PRESETS.map((tag) => (
+                <button
+                  type="button"
+                  key={tag}
+                  onClick={() => appendPresetToPersonality(tag)}
+                  className="rounded-full border border-sky-200 bg-sky-50 px-3 py-1.5 text-xs font-semibold text-sky-700 transition hover:border-sky-300"
+                >
+                  {tag}
+                </button>
+              ))}
             </div>
 
-            <div className="flex gap-2">
-              <input
-                value={customTagInput}
-                onChange={(event) => setCustomTagInput(event.target.value)}
-                onKeyDown={(event) => {
-                  if (event.key === "Enter") {
-                    event.preventDefault();
-                    addCustomTag();
-                  }
-                }}
-                placeholder="自訂標籤，例如：護短"
-                className="w-full rounded-2xl border border-sky-100 bg-sky-50/60 px-4 py-2.5 text-slate-800 placeholder:text-slate-400 focus:border-sky-400 focus:outline-none"
-              />
-              <button
-                type="button"
-                onClick={addCustomTag}
-                className="rounded-2xl border border-sky-300 bg-white px-4 py-2.5 text-sm font-semibold text-sky-700 hover:bg-sky-50"
-              >
-                新增
-              </button>
-            </div>
-
-            {form.personalityTags.length > 0 ? (
-              <div className="flex flex-wrap gap-2">
-                {form.personalityTags.map((tag) => (
-                  <span key={tag} className="inline-flex items-center gap-1 rounded-full border border-slate-200 bg-white px-3 py-1 text-xs text-slate-700">
-                    {tag}
-                    <button
-                      type="button"
-                      className="text-slate-500 hover:text-slate-800"
-                      onClick={() => togglePresetTag(tag)}
-                    >
-                      ×
-                    </button>
-                  </span>
-                ))}
-              </div>
-            ) : null}
+            <input
+              ref={personalityInputRef}
+              value={form.personalityText}
+              onChange={(event) => setField("personalityText", event.target.value)}
+              placeholder="點擊上方標籤快速帶入，或在此自由輸入/補充性格描述..."
+              className="w-full rounded-2xl border border-sky-100 bg-sky-50/60 px-4 py-2.5 text-slate-800 placeholder:text-slate-400 focus:border-sky-400 focus:outline-none"
+            />
           </div>
 
           <label className="grid gap-2 text-sm font-medium text-slate-700">
