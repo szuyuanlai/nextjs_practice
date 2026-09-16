@@ -109,11 +109,15 @@ export default function ArtistOrdersListView() {
         return;
       }
 
+      console.log("Current user ID:", user?.id);
+
       const { data, error } = await supabase
         .from("characters")
         .select("id,user_id,artist_id,name,status,created_at")
         .eq("artist_id", user.id)
         .order("created_at", { ascending: false });
+
+      console.log("Fetched characters error:", error, data);
 
       if (cancelled) {
         return;

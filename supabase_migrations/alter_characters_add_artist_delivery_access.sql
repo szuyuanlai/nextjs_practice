@@ -19,9 +19,9 @@ BEGIN
     FROM pg_policies
     WHERE schemaname = 'public'
       AND tablename = 'characters'
-      AND policyname = 'select_characters_assigned_artist'
+      AND policyname = 'Artists can view assigned characters'
   ) THEN
-    CREATE POLICY "select_characters_assigned_artist" ON public.characters
+    CREATE POLICY "Artists can view assigned characters" ON public.characters
       FOR SELECT USING (auth.uid() = artist_id);
   END IF;
 END
