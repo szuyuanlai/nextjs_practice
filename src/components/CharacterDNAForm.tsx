@@ -21,11 +21,15 @@ type FormState = {
   eyeStyle: string;
   eyeColor: string;
   heightBodyType: string;
+  bustSize: string;
   themeColor: string;
   outfitAccessories: string;
   additionalNotes: string;
   isPublicPortfolio: boolean;
 };
+
+type FieldName = keyof FormState;
+type FieldElement = HTMLInputElement | HTMLTextAreaElement | HTMLSelectElement;
 
 type ArtistProfile = {
   id: string;
@@ -50,10 +54,41 @@ const initialForm: FormState = {
   eyeStyle: "",
   eyeColor: "#000000",
   heightBodyType: "",
+  bustSize: "",
   themeColor: "#4ea8de",
   outfitAccessories: "",
   additionalNotes: "",
-  isPublicPortfolio: true,
+  isPublicPortfolio: false,
+};
+
+const BODY_TYPE_OPTIONS = [
+  { label: "蘿莉 (XS)", value: "蘿莉 (XS)" },
+  { label: "少女 (S)", value: "少女 (S)" },
+  { label: "乙女 (M)", value: "乙女 (M)" },
+  { label: "御姐 (L)", value: "御姐 (L)" },
+  { label: "熟女 (XL)", value: "熟女 (XL)" },
+] as const;
+
+const REQUIRED_FIELDS_BY_STEP: Record<number, FieldName[]> = {
+  1: ["name", "gender", "personalityText"],
+  2: ["heightBodyType", "bustSize"],
+};
+
+const REQUIRED_FIELD_LABELS: Record<FieldName, string> = {
+  name: "角色名稱",
+  gender: "性別 / 性向設定",
+  personalityText: "性格",
+  bio: "背景故事 / 簡介",
+  hairstyle: "發型",
+  hairColor: "頭髮顏色",
+  eyeStyle: "瞳孔形狀 / 風格",
+  eyeColor: "眼睛顏色",
+  heightBodyType: "身高 / 體型",
+  bustSize: "歐派大小",
+  themeColor: "代表色 / 主題色",
+  outfitAccessories: "服裝風格與配件描述",
+  additionalNotes: "特殊備註 / 繪師注意事項",
+  isPublicPortfolio: "作品集公開授權",
 };
 
 function buildStoragePath(userId: string, file: File, index: number) {
@@ -73,7 +108,9 @@ export default function CharacterDNAForm() {
   const [artistsError, setArtistsError] = useState("");
   const [artists, setArtists] = useState<ArtistProfile[]>([]);
   const [toast, setToast] = useState<ToastState | null>(null);
+  const [fieldErrors, setFieldErrors] = useState<Partial<Record<FieldName, string>>>({});
   const personalityInputRef = useRef<HTMLInputElement | null>(null);
+  const fieldRefs = useRef<Partial<Record<FieldName, FieldElement | null>>>({});
 
   const previewUrls = useMemo(
     () =>
@@ -82,8 +119,6 @@ export default function CharacterDNAForm() {
         .map((file) => URL.createObjectURL(file)),
     [referenceFiles],
   );
-
-  const canNextStep1 = form.name.trim().length > 0;
 
   const stepTitle = useMemo(() => {
     if (flowStep === "artist") return "選擇執筆繪師";
@@ -96,6 +131,53 @@ export default function CharacterDNAForm() {
       ...current,
       [key]: value,
     }));
+
+    setFieldErrors((current) => {
+      if (!current[key]) {
+        return current;
+      }
+
+      const next = { ...current };
+      delete next[key];
+      return next;
+    });
+  };
+
+  const setFieldRef = (name: FieldName, element: FieldElement | null) => {
+    fieldRefs.current[name] = element;
+  };
+
+  const getInputClassName = (name: FieldName, baseClassName: string) => {
+    if (!fieldErrors[name]) {
+      return baseClassName;
+    }
+
+    return `${baseClassName} border-rose-500 bg-rose-50/70 focus:border-rose-500`;
+  };
+
+  const validateFields = (fields: FieldName[]) => {
+    const nextErrors: Partial<Record<FieldName, string>> = {};
+
+    for (const field of fields) {
+      const value = form[field];
+      if (typeof value === "string" && !value.trim()) {
+        nextErrors[field] = `請填寫${REQUIRED_FIELD_LABELS[field]}`;
+      }
+    }
+
+    setFieldErrors((current) => ({ ...current, ...nextErrors }));
+
+    const firstInvalidField = fields.find((field) => nextErrors[field]);
+    if (firstInvalidField) {
+      const target = fieldRefs.current[firstInvalidField];
+      if (target) {
+        target.scrollIntoView({ behavior: "smooth", block: "center" });
+        window.setTimeout(() => target.focus(), 120);
+      }
+      return false;
+    }
+
+    return true;
   };
 
   const appendPresetToPersonality = (tag: string) => {
@@ -245,8 +327,9 @@ export default function CharacterDNAForm() {
   };
 
   const goNext = () => {
-    if (step === 1 && !canNextStep1) {
-      showToast("error", "請先填寫角色名稱。");
+    const requiredFields = REQUIRED_FIELDS_BY_STEP[step] ?? [];
+    if (!validateFields(requiredFields)) {
+      showToast("error", "請先完成必填欄位。");
       return;
     }
     setStep((current) => Math.min(2, current + 1));
@@ -257,9 +340,11 @@ export default function CharacterDNAForm() {
   };
 
   const handleCreateCharacter = async (selectedArtist: ArtistProfile) => {
-    if (!form.name.trim()) {
+    const requiredFields = Array.from(new Set([...REQUIRED_FIELDS_BY_STEP[1], ...REQUIRED_FIELDS_BY_STEP[2]]));
+    if (!validateFields(requiredFields)) {
       setStep(1);
-      showToast("error", "角色名稱為必填欄位。");
+      setFlowStep("form");
+      showToast("error", "請先完成必填欄位。");
       return;
     }
 
@@ -298,6 +383,7 @@ export default function CharacterDNAForm() {
       const normalizedEyeStyle = form.eyeStyle.trim() || null;
       const normalizedEyeColor = form.eyeColor || "#000000";
       const normalizedHeightBodyType = form.heightBodyType.trim() || null;
+      const normalizedBustSize = form.bustSize.trim() || null;
       const normalizedThemeColor = form.themeColor || "#4ea8de";
       const normalizedOutfitAccessories = form.outfitAccessories.trim() || null;
       const normalizedAdditionalNotes = form.additionalNotes.trim() || null;
@@ -312,6 +398,7 @@ export default function CharacterDNAForm() {
         eye_style: normalizedEyeStyle,
         eye_color: normalizedEyeColor,
         height_body_type: normalizedHeightBodyType,
+        bust_size: normalizedBustSize,
         theme_color: normalizedThemeColor,
         outfit_accessories: normalizedOutfitAccessories,
         additional_notes: normalizedAdditionalNotes,
@@ -336,6 +423,7 @@ export default function CharacterDNAForm() {
           eye_style: normalizedEyeStyle,
           eye_color: normalizedEyeColor,
           height_body_type: normalizedHeightBodyType,
+          bust_size: normalizedBustSize,
           theme_color: normalizedThemeColor,
           outfit_accessories: normalizedOutfitAccessories,
           additional_notes: normalizedAdditionalNotes,
@@ -368,9 +456,9 @@ export default function CharacterDNAForm() {
   };
 
   const handleOpenConfirm = () => {
-    if (!form.name.trim()) {
-      setStep(1);
-      showToast("error", "角色名稱為必填欄位。");
+    const requiredFields = Array.from(new Set([...REQUIRED_FIELDS_BY_STEP[1], ...REQUIRED_FIELDS_BY_STEP[2]]));
+    if (!validateFields(requiredFields)) {
+      showToast("error", "請先完成必填欄位。");
       return;
     }
 
@@ -459,6 +547,7 @@ export default function CharacterDNAForm() {
                   <span>{form.eyeColor}</span>
                 </div>
                 <p className="mt-1 text-sm text-slate-700">身高 / 體型：{form.heightBodyType || "未填寫"}</p>
+                <p className="mt-1 text-sm text-slate-700">歐派大小：{form.bustSize || "未填寫"}</p>
                 <div className="mt-1 flex items-center gap-2 text-sm text-slate-700">
                   <span>主題色：</span>
                   <span className="inline-block h-4 w-4 rounded-full border border-slate-300" style={{ backgroundColor: form.themeColor }} />
@@ -516,27 +605,43 @@ export default function CharacterDNAForm() {
       {flowStep === "form" && step === 1 ? (
         <div className="grid gap-6">
           <label className="grid gap-2 text-sm font-medium text-slate-700">
-            <span>角色名稱（必填）</span>
+            <span>
+              角色名稱 <span className="text-red-500">*</span>
+            </span>
             <input
+              ref={(element) => setFieldRef("name", element)}
               value={form.name}
               onChange={(event) => setField("name", event.target.value)}
               placeholder="例如：夜色織夢"
-              className="rounded-2xl border border-sky-100 bg-sky-50/60 px-4 py-3 text-slate-800 placeholder:text-slate-400 focus:border-sky-400 focus:outline-none"
+              className={getInputClassName(
+                "name",
+                "rounded-2xl border border-sky-100 bg-sky-50/60 px-4 py-3 text-slate-800 placeholder:text-slate-400 focus:border-sky-400 focus:outline-none",
+              )}
             />
+            {fieldErrors.name ? <p className="text-xs font-semibold text-rose-600">{fieldErrors.name}</p> : null}
           </label>
 
           <label className="grid gap-2 text-sm font-medium text-slate-700">
-            <span>性別 / 性向設定</span>
+            <span>
+              性別 / 性向設定 <span className="text-red-500">*</span>
+            </span>
             <input
+              ref={(element) => setFieldRef("gender", element)}
               value={form.gender}
               onChange={(event) => setField("gender", event.target.value)}
               placeholder="例如：女性、非二元、男性向、百合向"
-              className="rounded-2xl border border-sky-100 bg-sky-50/60 px-4 py-3 text-slate-800 placeholder:text-slate-400 focus:border-sky-400 focus:outline-none"
+              className={getInputClassName(
+                "gender",
+                "rounded-2xl border border-sky-100 bg-sky-50/60 px-4 py-3 text-slate-800 placeholder:text-slate-400 focus:border-sky-400 focus:outline-none",
+              )}
             />
+            {fieldErrors.gender ? <p className="text-xs font-semibold text-rose-600">{fieldErrors.gender}</p> : null}
           </label>
 
           <div className="grid gap-3 text-sm font-medium text-slate-700">
-            <span>性格</span>
+            <span>
+              性格 <span className="text-red-500">*</span>
+            </span>
             <div className="flex flex-wrap gap-2">
               {PERSONALITY_PRESETS.map((tag) => (
                 <button
@@ -551,12 +656,21 @@ export default function CharacterDNAForm() {
             </div>
 
             <input
-              ref={personalityInputRef}
+              ref={(element) => {
+                personalityInputRef.current = element;
+                setFieldRef("personalityText", element);
+              }}
               value={form.personalityText}
               onChange={(event) => setField("personalityText", event.target.value)}
               placeholder="點擊上方標籤快速帶入，或在此自由輸入/補充性格描述..."
-              className="w-full rounded-2xl border border-sky-100 bg-sky-50/60 px-4 py-2.5 text-slate-800 placeholder:text-slate-400 focus:border-sky-400 focus:outline-none"
+              className={getInputClassName(
+                "personalityText",
+                "w-full rounded-2xl border border-sky-100 bg-sky-50/60 px-4 py-2.5 text-slate-800 placeholder:text-slate-400 focus:border-sky-400 focus:outline-none",
+              )}
             />
+            {fieldErrors.personalityText ? (
+              <p className="text-xs font-semibold text-rose-600">{fieldErrors.personalityText}</p>
+            ) : null}
           </div>
 
           <label className="grid gap-2 text-sm font-medium text-slate-700">
@@ -621,13 +735,45 @@ export default function CharacterDNAForm() {
           </label>
 
           <label className="grid gap-2 text-sm font-medium text-slate-700">
-            <span>身高 / 體型</span>
-            <input
+            <span>
+              身高 / 體型 <span className="text-red-500">*</span>
+            </span>
+            <select
+              ref={(element) => setFieldRef("heightBodyType", element)}
               value={form.heightBodyType}
               onChange={(event) => setField("heightBodyType", event.target.value)}
-              placeholder="例如：162cm、纖細偏運動型"
-              className="rounded-2xl border border-sky-100 bg-sky-50/60 px-4 py-3 text-slate-800 placeholder:text-slate-400 focus:border-sky-400 focus:outline-none"
+              className={getInputClassName(
+                "heightBodyType",
+                "rounded-2xl border border-sky-100 bg-sky-50/60 px-4 py-3 text-slate-800 focus:border-sky-400 focus:outline-none",
+              )}
+            >
+              <option value="">請選擇體型</option>
+              {BODY_TYPE_OPTIONS.map((option) => (
+                <option key={option.value} value={option.value}>
+                  {option.label}
+                </option>
+              ))}
+            </select>
+            {fieldErrors.heightBodyType ? (
+              <p className="text-xs font-semibold text-rose-600">{fieldErrors.heightBodyType}</p>
+            ) : null}
+          </label>
+
+          <label className="grid gap-2 text-sm font-medium text-slate-700">
+            <span>
+              歐派大小 <span className="text-red-500">*</span>
+            </span>
+            <input
+              ref={(element) => setFieldRef("bustSize", element)}
+              value={form.bustSize}
+              onChange={(event) => setField("bustSize", event.target.value)}
+              placeholder="A (最小) - Z (最大)"
+              className={getInputClassName(
+                "bustSize",
+                "rounded-2xl border border-sky-100 bg-sky-50/60 px-4 py-3 text-slate-800 placeholder:text-slate-400 focus:border-sky-400 focus:outline-none",
+              )}
             />
+            {fieldErrors.bustSize ? <p className="text-xs font-semibold text-rose-600">{fieldErrors.bustSize}</p> : null}
           </label>
 
           <label className="grid gap-2 text-sm font-medium text-slate-700">

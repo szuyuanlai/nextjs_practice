@@ -34,20 +34,6 @@ function normalizeCharacterStatus(status: string | null) {
   return "draft";
 }
 
-function getStatusBadgeLabel(status: string | null) {
-  const normalizedStatus = normalizeCharacterStatus(status);
-
-  if (normalizedStatus === "completed") {
-    return "已完成";
-  }
-
-  if (normalizedStatus === "in_progress") {
-    return "製作中";
-  }
-
-  return "待處理";
-}
-
 function formatDate(iso: string) {
   const date = new Date(iso);
   if (Number.isNaN(date.getTime())) {
@@ -227,11 +213,9 @@ export default function CharactersListView() {
           <section className="grid gap-5 md:grid-cols-2 xl:grid-cols-3">
             {filteredCharacters.map((character) => {
               const appearance = character.appearance_details;
-              const themeColor = readAppearanceTextFromKeys(appearance, ["theme_color"], "#7dd3fc");
               const artistName = readAppearanceTextFromKeys(appearance, ["selected_artist_name"], "尚未指派");
               const normalizedStatus = normalizeCharacterStatus(character.status);
               const isCompleted = normalizedStatus === "completed";
-              const statusBadgeLabel = getStatusBadgeLabel(character.status);
               const thumbnailUrl = getCharacterThumbnail(character);
 
               return (
@@ -239,43 +223,24 @@ export default function CharactersListView() {
                   key={character.id}
                   className="group overflow-hidden rounded-[28px] border border-sky-100 bg-white shadow-sm transition hover:-translate-y-1 hover:shadow-xl"
                 >
-                  <div className="relative h-44 overflow-hidden border-b border-sky-100 bg-[linear-gradient(120deg,#e0f2fe_0%,#f0f9ff_45%,#ecfeff_100%)]">
-                    {thumbnailUrl ? (
-                      <img
-                        src={thumbnailUrl}
-                        alt={`${character.name} 角色 Icon`}
-                        className="h-full w-full object-cover transition duration-500 group-hover:scale-105"
-                      />
-                    ) : (
-                      <div className="flex h-full w-full items-center justify-center bg-[radial-gradient(circle_at_top,#ffffff_0%,#eff6ff_35%,#dbeafe_100%)] px-6 text-center">
-                        <div className="max-w-[220px] rounded-[24px] border border-white/70 bg-white/75 px-5 py-4 shadow-lg backdrop-blur">
-                          <p className="text-base font-black text-slate-900">繪師孵化中...</p>
-                          <p className="mt-1 text-sm font-medium text-sky-700">專屬形象誕生中</p>
-                          <p className="mt-2 text-xs leading-5 text-slate-500">完稿後將自動顯示正式角色 Icon 與完整角色資產。</p>
+                  {isCompleted ? (
+                    <div className="relative h-44 overflow-hidden border-b border-sky-100 bg-[linear-gradient(120deg,#e0f2fe_0%,#f0f9ff_45%,#ecfeff_100%)]">
+                      {thumbnailUrl ? (
+                        <img
+                          src={thumbnailUrl}
+                          alt={`${character.name} 角色 Icon`}
+                          className="h-full w-full object-cover transition duration-500 group-hover:scale-105"
+                        />
+                      ) : (
+                        <div className="flex h-full w-full items-center justify-center bg-[radial-gradient(circle_at_top,#ffffff_0%,#eff6ff_35%,#dbeafe_100%)] px-6 text-center">
+                          <div className="max-w-[220px] rounded-[24px] border border-white/70 bg-white/75 px-5 py-4 shadow-lg backdrop-blur">
+                            <p className="text-base font-black text-slate-900">已完成交付</p>
+                            <p className="mt-1 text-sm font-medium text-sky-700">可檢視完整角色資產</p>
+                          </div>
                         </div>
-                      </div>
-                    )}
-
-                    <div className="absolute left-3 top-3 inline-flex items-center gap-2 rounded-full bg-white/90 px-3 py-1 text-xs font-semibold text-slate-700 shadow-sm backdrop-blur">
-                      <span className="inline-block h-2.5 w-2.5 rounded-full" style={{ backgroundColor: themeColor }} />
-                      {themeColor}
+                      )}
                     </div>
-
-                    <div className="absolute right-3 top-3 rounded-full bg-slate-900/70 px-2.5 py-1 text-xs font-medium text-white backdrop-blur">
-                      {character.gender || "未設定性別"}
-                    </div>
-
-                    <div
-                      className={[
-                        "absolute bottom-3 right-3 rounded-full px-2.5 py-1 text-xs font-semibold",
-                        isCompleted
-                          ? "bg-emerald-100 text-emerald-700"
-                          : "bg-amber-100 text-amber-700",
-                      ].join(" ")}
-                    >
-                      {statusBadgeLabel}
-                    </div>
-                  </div>
+                  ) : null}
 
                   <div className="p-5">
                     <div className="mb-3 flex items-start justify-between gap-3">
@@ -299,7 +264,7 @@ export default function CharactersListView() {
                           已可製作周邊
                         </span>
                       ) : (
-                        <span className="rounded-full border border-amber-200 bg-amber-50 px-2.5 py-1 text-[11px] font-semibold text-amber-700">
+                        <span className="rounded-full border border-amber-200 bg-amber-50 px-3 py-1.5 text-sm font-semibold text-amber-700">
                           {normalizedStatus === "draft" ? "等待開始製作" : "製作進行中"}
                         </span>
                       )}
