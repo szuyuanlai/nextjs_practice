@@ -10,11 +10,14 @@ type CharacterListItem = {
   id: string;
   name: string;
   created_at: string;
+  status: string | null;
   gender: string | null;
   personality_tags: string[] | null;
   image_urls: string[] | null;
   appearance_details: Record<string, unknown> | null;
 };
+
+type CharacterTab = "completed" | "in_progress";
 
 function formatDate(iso: string) {
   const date = new Date(iso);
@@ -45,6 +48,7 @@ function readAppearanceTextFromKeys(
 export default function CharactersListView() {
   const router = useRouter();
   const [loading, setLoading] = useState(true);
+  const [activeTab, setActiveTab] = useState<CharacterTab>("completed");
   const [statusMessage, setStatusMessage] = useState("讀取角色資料中...");
   const [characters, setCharacters] = useState<CharacterListItem[]>([]);
 
@@ -78,7 +82,7 @@ export default function CharactersListView() {
 
       const { data, error } = await supabase
         .from("characters")
-        .select("id,name,created_at,gender,personality_tags,image_urls,appearance_details")
+        .select("id,name,created_at,status,gender,personality_tags,image_urls,appearance_details")
         .eq("user_id", user.id)
         .order("created_at", { ascending: false });
 
@@ -105,7 +109,18 @@ export default function CharactersListView() {
     };
   }, [router]);
 
-  const hasCharacters = useMemo(() => characters.length > 0, [characters.length]);
+  const completedCharacters = useMemo(
+    () => characters.filter((item) => (item.status ?? "in_progress") === "completed"),
+    [characters],
+  );
+
+  const inProgressCharacters = useMemo(
+    () => characters.filter((item) => (item.status ?? "in_progress") === "in_progress"),
+    [characters],
+  );
+
+  const filteredCharacters = activeTab === "completed" ? completedCharacters : inProgressCharacters;
+  const hasCharacters = filteredCharacters.length > 0;
 
   if (loading) {
     return (
@@ -142,18 +157,47 @@ export default function CharactersListView() {
           <p className="text-sm text-slate-600">{statusMessage}</p>
         </section>
 
+        <section className="mb-6 rounded-2xl border border-sky-100 bg-white p-2 shadow-sm">
+          <div className="grid grid-cols-1 gap-2 sm:grid-cols-2">
+            <button
+              type="button"
+              onClick={() => setActiveTab("completed")}
+              className={[
+                "rounded-xl px-4 py-2.5 text-sm font-semibold transition",
+                activeTab === "completed"
+                  ? "bg-emerald-500 text-white shadow-sm"
+                  : "bg-slate-50 text-slate-700 hover:bg-slate-100",
+              ].join(" ")}
+            >
+              我的角色 (已完成)
+            </button>
+            <button
+              type="button"
+              onClick={() => setActiveTab("in_progress")}
+              className={[
+                "rounded-xl px-4 py-2.5 text-sm font-semibold transition",
+                activeTab === "in_progress"
+                  ? "bg-sky-600 text-white shadow-sm"
+                  : "bg-slate-50 text-slate-700 hover:bg-slate-100",
+              ].join(" ")}
+            >
+              進行中訂單 / 未完成角色
+            </button>
+          </div>
+        </section>
+
         {hasCharacters ? (
           <section className="grid gap-5 md:grid-cols-2 xl:grid-cols-3">
-            {characters.map((character) => {
+            {filteredCharacters.map((character) => {
               const appearance = character.appearance_details;
               const themeColor = readAppearanceTextFromKeys(appearance, ["theme_color"], "#7dd3fc");
               const artistName = readAppearanceTextFromKeys(appearance, ["selected_artist_name"], "尚未指派");
               const thumbnailUrl = character.image_urls?.[0] ?? "";
+              const isCompleted = (character.status ?? "in_progress") === "completed";
 
               return (
-                <Link
+                <article
                   key={character.id}
-                  href={`/characters/${character.id}`}
                   className="group overflow-hidden rounded-[28px] border border-sky-100 bg-white shadow-sm transition hover:-translate-y-1 hover:shadow-xl"
                 >
                   <div className="relative h-44 overflow-hidden border-b border-sky-100 bg-[linear-gradient(120deg,#e0f2fe_0%,#f0f9ff_45%,#ecfeff_100%)]">
@@ -179,6 +223,17 @@ export default function CharactersListView() {
                     <div className="absolute right-3 top-3 rounded-full bg-slate-900/70 px-2.5 py-1 text-xs font-medium text-white backdrop-blur">
                       {character.gender || "未設定性別"}
                     </div>
+
+                    <div
+                      className={[
+                        "absolute bottom-3 right-3 rounded-full px-2.5 py-1 text-xs font-semibold",
+                        isCompleted
+                          ? "bg-emerald-100 text-emerald-700"
+                          : "bg-amber-100 text-amber-700",
+                      ].join(" ")}
+                    >
+                      {isCompleted ? "已完成" : "繪製中"}
+                    </div>
                   </div>
 
                   <div className="p-5">
@@ -196,21 +251,63 @@ export default function CharactersListView() {
                       性格：{character.personality_tags?.length ? character.personality_tags.join("、") : "未設定"}
                     </p>
 
-                    <div className="mt-4 flex items-center justify-between">
+                    <div className="mt-4 flex items-center justify-between gap-2">
                       <p className="text-xs text-slate-500">建立日期：{formatDate(character.created_at)}</p>
-                      <span className="rounded-full border border-sky-200 bg-white px-2.5 py-1 text-[11px] font-semibold text-sky-700">
-                        查看資產
-                      </span>
+                      {isCompleted ? (
+                        <span className="rounded-full border border-emerald-200 bg-emerald-50 px-2.5 py-1 text-[11px] font-semibold text-emerald-700">
+                          已可製作周邊
+                        </span>
+                      ) : (
+                        <span className="rounded-full border border-amber-200 bg-amber-50 px-2.5 py-1 text-[11px] font-semibold text-amber-700">
+                          製作進行中
+                        </span>
+                      )}
+                    </div>
+
+                    {isCompleted ? (
+                      <div className="mt-4 grid grid-cols-2 gap-2">
+                        <Link
+                          href="/shop"
+                          className="inline-flex items-center justify-center rounded-xl border border-emerald-200 bg-emerald-50 px-3 py-2 text-xs font-semibold text-emerald-700 transition hover:bg-emerald-100"
+                        >
+                          製作周邊
+                        </Link>
+                        <Link
+                          href={`/characters/${character.id}`}
+                          className="inline-flex items-center justify-center rounded-xl bg-sky-600 px-3 py-2 text-xs font-semibold text-white transition hover:bg-sky-700"
+                        >
+                          查看完整資產
+                        </Link>
+                      </div>
+                    ) : (
+                      <div className="mt-4 grid grid-cols-1 gap-2">
+                        <Link
+                          href="/orders"
+                          className="inline-flex items-center justify-center rounded-xl border border-sky-200 bg-sky-50 px-3 py-2 text-xs font-semibold text-sky-700 transition hover:bg-sky-100"
+                        >
+                          查看訂單進度
+                        </Link>
+                      </div>
                     </div>
                   </div>
-                </Link>
+                </article>
               );
             })}
           </section>
         ) : (
           <section className="rounded-[28px] border border-sky-100 bg-white p-8 text-center shadow-sm">
-            <h2 className="text-xl font-black text-slate-900">目前還沒有角色資料</h2>
-            <p className="mt-2 text-slate-600">先建立第一個角色，再回來管理你的角色資產。</p>
+            {activeTab === "completed" ? (
+              <>
+                <h2 className="text-xl font-black text-slate-900">目前沒有已完成角色</h2>
+                <p className="mt-2 text-slate-600">完成後的角色會出現在這裡，並可直接製作周邊。</p>
+              </>
+            ) : (
+              <>
+                <h2 className="text-xl font-black text-slate-900">目前沒有進行中角色</h2>
+                <p className="mt-2 text-slate-600">建立新角色後，會先出現在進行中分頁。</p>
+              </>
+            )}
+
             <Link
               href="/characters/create"
               className="mt-5 inline-flex items-center justify-center rounded-full bg-gradient-to-r from-sky-500 to-blue-600 px-5 py-2.5 text-sm font-semibold text-white"
