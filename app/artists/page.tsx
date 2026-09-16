@@ -24,7 +24,7 @@ export default function ArtistsPage() {
           </p>
         </section>
 
-        <section className="overflow-hidden rounded-[30px] border border-sky-100 bg-white p-5 shadow-sm sm:p-6">
+        <section className="overflow-hidden rounded-[30px] border border-sky-100 bg-white shadow-sm">
           <ArtistMarquee />
         </section>
 

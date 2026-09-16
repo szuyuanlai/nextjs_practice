@@ -71,7 +71,7 @@ export function ArtistMarquee() {
 
   if (isLoadingArtists) {
     return (
-      <div className="flex gap-4 overflow-hidden">
+        <div className="flex gap-4 overflow-hidden [mask-image:linear-gradient(to_right,transparent,black_10%,black_90%,transparent)]">
         {[1, 2, 3].map((item) => (
           <div key={item} className="h-44 min-w-[260px] animate-pulse rounded-[22px] bg-sky-50" />
         ))}
@@ -88,7 +88,8 @@ export function ArtistMarquee() {
   }
 
   return (
-    <div className="group relative overflow-hidden">
+    /* 外層容器：加上 [mask-image] 讓左右邊緣自然淡出，並確保 overflow-hidden */
+    <div className="group relative w-full overflow-hidden [mask-image:linear-gradient(to_right,transparent,black_8%,black_92%,transparent)] py-2">
       <div className="animate-marquee flex min-w-max gap-4 group-hover:[animation-play-state:paused]">
         {marqueeArtists.map((artist, index) => {
           const artistName = artist.display_name ?? artist.full_name ?? "聯名畫師";
@@ -106,6 +107,7 @@ export function ArtistMarquee() {
               key={`${artist.id}-${index}`}
               className="relative flex min-w-[280px] max-w-[280px] flex-col overflow-hidden rounded-[22px] border border-sky-100 bg-white shadow-sm"
             >
+              {/* 背景圖區塊 */}
               <div className="relative aspect-video overflow-hidden bg-[linear-gradient(120deg,#dbeafe_0%,#e0f2fe_45%,#f0f9ff_100%)]">
                 {coverUrl ? (
                   // eslint-disable-next-line @next/next/no-img-element
@@ -113,7 +115,7 @@ export function ArtistMarquee() {
                 ) : null}
                 <span
                   className={[
-                    "absolute right-3 top-3 inline-flex rounded-md px-2.5 py-1 text-xs font-bold",
+                    "absolute right-3 top-3 z-10 inline-flex rounded-md px-2.5 py-1 text-xs font-bold shadow-sm",
                     statusConfig.className,
                   ].join(" ")}
                 >
@@ -121,9 +123,11 @@ export function ArtistMarquee() {
                 </span>
               </div>
 
-              <div className="px-4 pb-4">
-                <div className="-mt-8 mb-3 flex items-end gap-3">
-                  <div className="h-14 w-14 overflow-hidden rounded-full border-2 border-white bg-white shadow-sm">
+              {/* 下方內容區塊 */}
+              <div className="flex flex-1 flex-col px-4 pb-4">
+                {/* 頭像部分：改為 relative z-10 且用 -mt-8 壓在背景圖上，搭配 border-4 亮白邊匡 */}
+                <div className="relative -mt-10 z-10 ml-4 mb-3 flex items-end gap-3">
+                  <div className="h-16 w-16 overflow-hidden rounded-full bg-white shadow-sm ring-4 ring-white">
                     {artist.avatar_url ? (
                       // eslint-disable-next-line @next/next/no-img-element
                       <img src={artist.avatar_url} alt={artistName} className="h-full w-full object-cover" />
@@ -134,7 +138,7 @@ export function ArtistMarquee() {
                     )}
                   </div>
 
-                  <div className="min-w-0 flex-1 pb-1">
+                  <div className="min-w-0 flex-1 pb-0.5">
                     <h3 className="truncate text-lg font-black text-slate-900">{artistName}</h3>
                     <p className="text-xs font-semibold text-sky-700">聯名畫師</p>
                   </div>
