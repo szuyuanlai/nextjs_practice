@@ -32,8 +32,8 @@ type ArtistProfile = {
   avatar_url: string | null;
   bio: string | null;
   role: string | null;
-  style_tags: string[] | null;
-  surcharge_multiplier: number | null;
+  style_tags?: string[];
+  surcharge_multiplier?: number;
 };
 
 const PERSONALITY_PRESETS = ["傲嬌", "溫柔", "病嬌", "元氣", "理性", "天然", "腹黑", "冷酷"];
@@ -164,7 +164,8 @@ export default function CharacterDNAForm() {
         .select("id,full_name,avatar_url,bio,role,style_tags,surcharge_multiplier")
         .or("role.eq.ARTIST,role.eq.artist,role.ilike.%artist%");
 
-      let data = detailedQuery.data;
+      let data: Record<string, unknown>[] | null =
+        (detailedQuery.data as unknown as Record<string, unknown>[] | null) ?? null;
       let error = detailedQuery.error;
 
       // Fallback query for older schemas without style_tags / surcharge_multiplier.
@@ -173,7 +174,7 @@ export default function CharacterDNAForm() {
           .from("profiles")
           .select("id,full_name,avatar_url,bio,role")
           .or("role.eq.ARTIST,role.eq.artist,role.ilike.%artist%");
-        data = basicQuery.data;
+        data = (basicQuery.data as unknown as Record<string, unknown>[] | null) ?? null;
         error = basicQuery.error;
       }
 
@@ -187,8 +188,7 @@ export default function CharacterDNAForm() {
         return;
       }
 
-      const normalizedArtists = (data ?? []).map((item) => {
-        const row = item as Record<string, unknown>;
+      const normalizedArtists = (data ?? []).map((row) => {
         return {
           id: String(row.id ?? ""),
           full_name: typeof row.full_name === "string" ? row.full_name : null,
@@ -197,9 +197,9 @@ export default function CharacterDNAForm() {
           role: typeof row.role === "string" ? row.role : null,
           style_tags: Array.isArray(row.style_tags)
             ? row.style_tags.filter((tag): tag is string => typeof tag === "string")
-            : null,
+            : [],
           surcharge_multiplier:
-            typeof row.surcharge_multiplier === "number" ? row.surcharge_multiplier : null,
+            typeof row.surcharge_multiplier === "number" ? row.surcharge_multiplier : 1,
         } satisfies ArtistProfile;
       });
 

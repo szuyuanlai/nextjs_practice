@@ -1,14 +1,14 @@
 "use client";
 
 import Link from "next/link";
-import { useState } from "react";
+import { Suspense, useState } from "react";
 import { useSearchParams } from "next/navigation";
 import { ArrowLeft, Loader2 } from "lucide-react";
 import { getSupabaseClient } from "@/src/lib/supabase/client";
 
 type OAuthProvider = "google" | "x";
 
-export default function LoginPage() {
+function LoginPageContent() {
   const searchParams = useSearchParams();
   const [loadingProvider, setLoadingProvider] = useState<OAuthProvider | null>(null);
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
@@ -94,5 +94,22 @@ export default function LoginPage() {
         </div>
       </section>
     </main>
+  );
+}
+
+export default function LoginPage() {
+  return (
+    <Suspense
+      fallback={
+        <main className="relative flex min-h-screen items-center justify-center overflow-hidden bg-[linear-gradient(160deg,#f0f9ff_0%,#e0f2fe_55%,#f8fafc_100%)] px-4">
+          <div className="flex items-center gap-3 rounded-2xl border border-sky-100 bg-white px-5 py-4 text-slate-600 shadow-sm">
+            <Loader2 className="h-5 w-5 animate-spin text-sky-600" />
+            載入登入頁面中...
+          </div>
+        </main>
+      }
+    >
+      <LoginPageContent />
+    </Suspense>
   );
 }
