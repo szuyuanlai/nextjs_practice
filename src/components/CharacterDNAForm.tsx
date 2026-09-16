@@ -322,7 +322,7 @@ export default function CharacterDNAForm() {
         .insert({
           user_id: user.id,
           artist_id: selectedArtist.id,
-          status: "in_progress",
+          status: "draft",
           name: normalizedName,
           gender: normalizedGender,
           personality_tags: normalizedPersonalityTags,
