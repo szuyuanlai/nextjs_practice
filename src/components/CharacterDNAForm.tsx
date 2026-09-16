@@ -24,6 +24,7 @@ type FormState = {
   themeColor: string;
   outfitAccessories: string;
   additionalNotes: string;
+  isPublicPortfolio: boolean;
 };
 
 type ArtistProfile = {
@@ -52,6 +53,7 @@ const initialForm: FormState = {
   themeColor: "#4ea8de",
   outfitAccessories: "",
   additionalNotes: "",
+  isPublicPortfolio: true,
 };
 
 function buildStoragePath(userId: string, file: File, index: number) {
@@ -315,6 +317,8 @@ export default function CharacterDNAForm() {
         additional_notes: normalizedAdditionalNotes,
         selected_artist_id: selectedArtist.id,
         selected_artist_name: normalizedArtistName,
+        is_public_portfolio: form.isPublicPortfolio,
+        reference_image_urls: normalizedImageUrls,
       };
 
       const { data: insertedCharacter, error: insertError } = await supabase
@@ -336,6 +340,7 @@ export default function CharacterDNAForm() {
           outfit_accessories: normalizedOutfitAccessories,
           additional_notes: normalizedAdditionalNotes,
           selected_artist_name: normalizedArtistName,
+          is_public_portfolio: form.isPublicPortfolio,
           appearance_details: appearanceDetails,
           image_urls: normalizedImageUrls,
           created_at: new Date().toISOString(),
@@ -461,6 +466,9 @@ export default function CharacterDNAForm() {
                 </div>
                 <p className="mt-2 whitespace-pre-wrap text-sm text-slate-700">服裝與配件：{form.outfitAccessories || "未填寫"}</p>
                 <p className="mt-2 whitespace-pre-wrap text-sm text-slate-700">特殊備註：{form.additionalNotes || "未填寫"}</p>
+                <p className="mt-2 text-sm text-slate-700">
+                  作品集公開授權：{form.isPublicPortfolio ? "已授權繪師收錄至公開作品集" : "不授權公開展示"}
+                </p>
               </article>
             </div>
 
@@ -670,6 +678,19 @@ export default function CharacterDNAForm() {
               placeholder="例如：希望偏明亮光影、避免過於寫實、保留左眼下淚痣"
               className="rounded-2xl border border-sky-100 bg-sky-50/60 px-4 py-3 text-slate-800 placeholder:text-slate-400 focus:border-sky-400 focus:outline-none"
             />
+          </label>
+
+          <label className="flex items-start gap-3 rounded-2xl border border-sky-100 bg-sky-50/50 px-4 py-4 text-sm text-slate-700">
+            <input
+              type="checkbox"
+              checked={form.isPublicPortfolio}
+              onChange={(event) => setField("isPublicPortfolio", event.target.checked)}
+              className="mt-1 h-4 w-4 rounded border-sky-300 text-sky-600"
+            />
+            <span>
+              <span className="block font-semibold text-slate-900">授權繪師收錄至個人公開作品集 (Portfolio Authorization)</span>
+              <span className="mt-1 block text-slate-600">勾選後，繪師可在完稿後將此作品展示於個人作品集頁面。</span>
+            </span>
           </label>
         </div>
       ) : null}

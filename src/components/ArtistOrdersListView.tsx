@@ -15,12 +15,18 @@ type CharacterOrderRow = {
   name: string;
   status: CharacterStatus | null;
   created_at: string;
-};
-
-type ProfileRow = {
-  id: string;
-  full_name: string | null;
-  display_name: string | null;
+  is_anonymous?: boolean | null;
+  appearance_details?: Record<string, unknown> | null;
+  client?:
+    | {
+        display_name: string | null;
+        full_name: string | null;
+      }
+    | Array<{
+        display_name: string | null;
+        full_name: string | null;
+      }>
+    | null;
 };
 
 type EnrichedCharacterOrder = CharacterOrderRow & {
@@ -75,6 +81,29 @@ function getStatusConfig(status: string | null) {
   };
 }
 
+function getClientName(row: CharacterOrderRow) {
+  const clientProfile = Array.isArray(row.client) ? row.client[0] : row.client;
+  const isAnonymous =
+    row.is_anonymous === true ||
+    (typeof row.appearance_details?.is_anonymous === "boolean" && row.appearance_details.is_anonymous === true);
+
+  if (isAnonymous) {
+    return "匿名委託者 (Anonymous)";
+  }
+
+  const displayName = clientProfile?.display_name?.trim();
+  if (displayName) {
+    return displayName;
+  }
+
+  const fullName = clientProfile?.full_name?.trim();
+  if (fullName) {
+    return fullName;
+  }
+
+  return `委託人 #${row.user_id.slice(0, 6)}`;
+}
+
 export default function ArtistOrdersListView() {
   const router = useRouter();
   const [orders, setOrders] = useState<EnrichedCharacterOrder[]>([]);
@@ -113,7 +142,7 @@ export default function ArtistOrdersListView() {
 
       const { data, error } = await supabase
         .from("characters")
-        .select("id,user_id,artist_id,name,status,created_at")
+        .select("id,user_id,artist_id,name,status,created_at,appearance_details,client:profiles!characters_user_id_fkey(display_name,full_name)")
         .eq("artist_id", user.id)
         .order("created_at", { ascending: false });
 
@@ -129,20 +158,7 @@ export default function ArtistOrdersListView() {
         return;
       }
 
-      const rows = (data ?? []) as CharacterOrderRow[];
-      const userIds = Array.from(new Set(rows.map((row) => row.user_id).filter(Boolean)));
-      const profileMap = new Map<string, string>();
-
-      if (userIds.length > 0) {
-        const { data: profiles } = await supabase
-          .from("profiles")
-          .select("id,full_name,display_name")
-          .in("id", userIds);
-
-        for (const profile of (profiles ?? []) as ProfileRow[]) {
-          profileMap.set(profile.id, profile.display_name ?? profile.full_name ?? "未命名客戶");
-        }
-      }
+      const rows = ((data ?? []) as unknown) as CharacterOrderRow[];
 
       if (cancelled) {
         return;
@@ -151,7 +167,7 @@ export default function ArtistOrdersListView() {
       setOrders(
         rows.map((row) => ({
           ...row,
-          clientName: profileMap.get(row.user_id) ?? "未命名客戶",
+          clientName: getClientName(row),
         })),
       );
       setIsLoading(false);

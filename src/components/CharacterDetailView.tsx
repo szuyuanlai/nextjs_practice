@@ -11,10 +11,13 @@ type CharacterRecord = {
   user_id: string;
   name: string;
   gender: string | null;
+  status: string | null;
   personality_tags: string[] | null;
   bio: string | null;
   appearance_details: Record<string, unknown> | null;
   image_urls: string[] | null;
+  character_sheet_url: string | null;
+  character_icon_url: string | null;
   created_at: string;
 };
 
@@ -59,6 +62,24 @@ function readAppearanceTextFromKeys(
   return fallback;
 }
 
+function normalizeCharacterStatus(status: string | null) {
+  if (status === "completed") {
+    return "completed";
+  }
+  if (status === "in_progress") {
+    return "in_progress";
+  }
+  return "draft";
+}
+
+function parseStringArray(value: unknown) {
+  if (!Array.isArray(value)) {
+    return [] as string[];
+  }
+
+  return value.filter((item): item is string => typeof item === "string" && item.trim().length > 0);
+}
+
 export default function CharacterDetailView({ characterId }: Props) {
   const router = useRouter();
   const [loading, setLoading] = useState(true);
@@ -95,7 +116,7 @@ export default function CharacterDetailView({ characterId }: Props) {
 
       const { data, error } = await supabase
         .from("characters")
-        .select("id,user_id,name,gender,personality_tags,bio,appearance_details,image_urls,created_at")
+        .select("id,user_id,name,gender,status,personality_tags,bio,appearance_details,image_urls,character_sheet_url,character_icon_url,created_at")
         .eq("id", characterId)
         .eq("user_id", user.id)
         .maybeSingle();
@@ -128,6 +149,20 @@ export default function CharacterDetailView({ characterId }: Props) {
   }, [characterId, router]);
 
   const appearance = useMemo(() => character?.appearance_details ?? null, [character]);
+  const normalizedStatus = normalizeCharacterStatus(character?.status ?? null);
+  const isCompleted = normalizedStatus === "completed";
+  const referenceImageUrls = useMemo(() => {
+    const explicitReferenceUrls = parseStringArray(appearance?.reference_image_urls);
+    if (explicitReferenceUrls.length > 0) {
+      return explicitReferenceUrls;
+    }
+
+    const excludedUrls = new Set(
+      [character?.character_sheet_url ?? "", character?.character_icon_url ?? ""].filter((value) => value.length > 0),
+    );
+
+    return parseStringArray(character?.image_urls ?? []).filter((url) => !excludedUrls.has(url));
+  }, [appearance, character?.character_icon_url, character?.character_sheet_url, character?.image_urls]);
 
   if (loading) {
     return (
@@ -177,15 +212,32 @@ export default function CharacterDetailView({ characterId }: Props) {
         </Link>
 
         <section className="mb-6 rounded-[30px] border border-sky-100 bg-white p-6 shadow-sm sm:p-8">
-          <p className="mb-2 inline-flex items-center gap-2 rounded-full border border-sky-200 bg-sky-50 px-3 py-1 text-[11px] font-semibold uppercase tracking-[0.2em] text-sky-700">
-            <Sparkles className="h-3.5 w-3.5" />
-            Character Profile
-          </p>
-          <h1 className="text-3xl font-black tracking-tight text-slate-900">{character.name}</h1>
-          <p className="mt-3 text-sm text-slate-600">建立時間：{formatDate(character.created_at)}</p>
-          <p className="mt-1 text-sm text-slate-600">
-            執筆繪師：{readAppearanceText(appearance, "selected_artist_name")}
-          </p>
+          <div className="flex flex-col gap-5 lg:flex-row lg:items-center lg:justify-between">
+            <div>
+              <p className="mb-2 inline-flex items-center gap-2 rounded-full border border-sky-200 bg-sky-50 px-3 py-1 text-[11px] font-semibold uppercase tracking-[0.2em] text-sky-700">
+                <Sparkles className="h-3.5 w-3.5" />
+                Character Profile
+              </p>
+              <h1 className="text-3xl font-black tracking-tight text-slate-900">{character.name}</h1>
+              <p className="mt-3 text-sm text-slate-600">建立時間：{formatDate(character.created_at)}</p>
+              <p className="mt-1 text-sm text-slate-600">
+                執筆繪師：{readAppearanceText(appearance, "selected_artist_name")}
+              </p>
+            </div>
+
+            {isCompleted && character.character_icon_url ? (
+              <div className="h-28 w-28 overflow-hidden rounded-[28px] border border-sky-100 bg-slate-50 shadow-sm">
+                <img src={character.character_icon_url} alt={`${character.name} 角色 Icon`} className="h-full w-full object-cover" />
+              </div>
+            ) : (
+              <div className="flex h-28 w-28 items-center justify-center rounded-[28px] border border-sky-100 bg-[radial-gradient(circle_at_top,#ffffff_0%,#eff6ff_40%,#dbeafe_100%)] p-4 text-center shadow-sm">
+                <div>
+                  <p className="text-sm font-black text-slate-900">繪師孵化中...</p>
+                  <p className="mt-1 text-[11px] text-sky-700">專屬形象誕生中</p>
+                </div>
+              </div>
+            )}
+          </div>
         </section>
 
         <section className="grid gap-6 lg:grid-cols-2">
@@ -277,11 +329,34 @@ export default function CharacterDetailView({ characterId }: Props) {
           </article>
         </section>
 
+        {isCompleted && character.character_sheet_url ? (
+          <section className="mt-6 rounded-[24px] border border-sky-100 bg-white p-5 shadow-sm">
+            <h2 className="text-lg font-black text-slate-900">角色三視圖</h2>
+            <a
+              href={character.character_sheet_url}
+              target="_blank"
+              rel="noreferrer"
+              className="mt-4 block overflow-hidden rounded-2xl border border-slate-200 bg-slate-50"
+            >
+              <img src={character.character_sheet_url} alt={`${character.name} 角色三視圖`} className="max-h-[560px] w-full object-contain" />
+            </a>
+          </section>
+        ) : (
+          <section className="mt-6 rounded-[24px] border border-sky-100 bg-white p-5 shadow-sm">
+            <h2 className="text-lg font-black text-slate-900">交稿狀態</h2>
+            <div className="mt-4 rounded-[24px] border border-sky-100 bg-[radial-gradient(circle_at_top,#ffffff_0%,#eff6ff_35%,#dbeafe_100%)] p-8 text-center">
+              <p className="text-xl font-black text-slate-900">繪製中預設預覽卡</p>
+              <p className="mt-2 text-sm font-medium text-sky-700">專屬形象誕生中</p>
+              <p className="mt-3 text-sm leading-6 text-slate-500">此角色尚未完成交付，正式角色 Icon 與角色三視圖會在繪師完成交稿後顯示。</p>
+            </div>
+          </section>
+        )}
+
         <section className="mt-6 rounded-[24px] border border-sky-100 bg-white p-5 shadow-sm">
           <h2 className="text-lg font-black text-slate-900">參考圖片</h2>
-          {(character.image_urls ?? []).length > 0 ? (
+          {referenceImageUrls.length > 0 ? (
             <div className="mt-4 grid grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-4">
-              {character.image_urls?.map((url, index) => (
+              {referenceImageUrls.map((url, index) => (
                 <a
                   href={url}
                   target="_blank"

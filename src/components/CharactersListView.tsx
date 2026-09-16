@@ -14,6 +14,8 @@ type CharacterListItem = {
   gender: string | null;
   personality_tags: string[] | null;
   image_urls: string[] | null;
+  character_sheet_url: string | null;
+  character_icon_url: string | null;
   appearance_details: Record<string, unknown> | null;
 };
 
@@ -72,6 +74,14 @@ function readAppearanceTextFromKeys(
   return fallback;
 }
 
+function getCharacterThumbnail(character: CharacterListItem) {
+  if (normalizeCharacterStatus(character.status) === "completed") {
+    return character.character_icon_url?.trim() || "";
+  }
+
+  return "";
+}
+
 export default function CharactersListView() {
   const router = useRouter();
   const [loading, setLoading] = useState(true);
@@ -109,7 +119,7 @@ export default function CharactersListView() {
 
       const { data, error } = await supabase
         .from("characters")
-        .select("id,name,created_at,status,gender,personality_tags,image_urls,appearance_details")
+        .select("id,name,created_at,status,gender,personality_tags,image_urls,character_sheet_url,character_icon_url,appearance_details")
         .eq("user_id", user.id)
         .order("created_at", { ascending: false });
 
@@ -219,10 +229,10 @@ export default function CharactersListView() {
               const appearance = character.appearance_details;
               const themeColor = readAppearanceTextFromKeys(appearance, ["theme_color"], "#7dd3fc");
               const artistName = readAppearanceTextFromKeys(appearance, ["selected_artist_name"], "尚未指派");
-              const thumbnailUrl = character.image_urls?.[0] ?? "";
               const normalizedStatus = normalizeCharacterStatus(character.status);
               const isCompleted = normalizedStatus === "completed";
               const statusBadgeLabel = getStatusBadgeLabel(character.status);
+              const thumbnailUrl = getCharacterThumbnail(character);
 
               return (
                 <article
@@ -233,13 +243,15 @@ export default function CharactersListView() {
                     {thumbnailUrl ? (
                       <img
                         src={thumbnailUrl}
-                        alt={`${character.name} 參考圖`}
+                        alt={`${character.name} 角色 Icon`}
                         className="h-full w-full object-cover transition duration-500 group-hover:scale-105"
                       />
                     ) : (
-                      <div className="flex h-full w-full items-center justify-center">
-                        <div className="rounded-full border border-sky-200 bg-white/80 px-4 py-2 text-sm font-semibold text-sky-700 shadow-sm backdrop-blur">
-                          尚無參考圖
+                      <div className="flex h-full w-full items-center justify-center bg-[radial-gradient(circle_at_top,#ffffff_0%,#eff6ff_35%,#dbeafe_100%)] px-6 text-center">
+                        <div className="max-w-[220px] rounded-[24px] border border-white/70 bg-white/75 px-5 py-4 shadow-lg backdrop-blur">
+                          <p className="text-base font-black text-slate-900">繪師孵化中...</p>
+                          <p className="mt-1 text-sm font-medium text-sky-700">專屬形象誕生中</p>
+                          <p className="mt-2 text-xs leading-5 text-slate-500">完稿後將自動顯示正式角色 Icon 與完整角色資產。</p>
                         </div>
                       </div>
                     )}

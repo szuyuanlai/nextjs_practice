@@ -21,6 +21,8 @@ type CharacterRecord = {
   bio: string | null;
   appearance_details: Record<string, unknown> | null;
   image_urls: string[] | null;
+  character_sheet_url: string | null;
+  character_icon_url: string | null;
   created_at: string;
 };
 
@@ -113,7 +115,8 @@ export default function ArtistOrderDetailView({ orderId }: Props) {
   const [submitting, setSubmitting] = useState(false);
   const [errorMessage, setErrorMessage] = useState("");
   const [successMessage, setSuccessMessage] = useState("");
-  const [deliveryFiles, setDeliveryFiles] = useState<File[]>([]);
+  const [characterSheetFiles, setCharacterSheetFiles] = useState<File[]>([]);
+  const [characterIconFiles, setCharacterIconFiles] = useState<File[]>([]);
   const [artistUserId, setArtistUserId] = useState<string | null>(null);
 
   useEffect(() => {
@@ -148,7 +151,7 @@ export default function ArtistOrderDetailView({ orderId }: Props) {
 
       const { data, error } = await supabase
         .from("characters")
-        .select("id,user_id,artist_id,name,gender,status,personality_tags,bio,appearance_details,image_urls,created_at")
+        .select("id,user_id,artist_id,name,gender,status,personality_tags,bio,appearance_details,image_urls,character_sheet_url,character_icon_url,created_at")
         .eq("id", orderId)
         .eq("artist_id", user.id)
         .maybeSingle();
@@ -199,6 +202,8 @@ export default function ArtistOrderDetailView({ orderId }: Props) {
     () => parseStringArray(appearance?.delivery_asset_urls),
     [appearance],
   );
+  const currentCharacterSheetUrl = character?.character_sheet_url?.trim() || "";
+  const currentCharacterIconUrl = character?.character_icon_url?.trim() || "";
   const referenceImageUrls = useMemo(() => {
     const explicitReferenceUrls = parseStringArray(appearance?.reference_image_urls);
     const allImageUrls = parseStringArray(character?.image_urls ?? []);
@@ -215,8 +220,13 @@ export default function ArtistOrderDetailView({ orderId }: Props) {
       return;
     }
 
-    if (deliveryFiles.length === 0 && deliveryAssetUrls.length === 0) {
-      setErrorMessage("請先上傳至少一個交付檔案，再確認交付。");
+    if (characterSheetFiles.length === 0 && !currentCharacterSheetUrl) {
+      setErrorMessage("請先上傳角色三視圖，再確認交付。");
+      return;
+    }
+
+    if (characterIconFiles.length === 0 && !currentCharacterIconUrl) {
+      setErrorMessage("請先上傳角色臉部頭像/Icon，再確認交付。");
       return;
     }
 
@@ -231,18 +241,28 @@ export default function ArtistOrderDetailView({ orderId }: Props) {
     setSuccessMessage("");
 
     try {
-      const uploadedUrls: string[] = [];
+      let nextCharacterSheetUrl = currentCharacterSheetUrl;
+      let nextCharacterIconUrl = currentCharacterIconUrl;
 
-      for (let index = 0; index < deliveryFiles.length; index += 1) {
-        const file = deliveryFiles[index];
-        const path = `${artistUserId}/${character.id}/delivery-${Date.now()}-${index}-${file.name}`;
+      if (characterSheetFiles[0]) {
+        const file = characterSheetFiles[0];
+        const path = `${artistUserId}/${character.id}/character-sheet-${Date.now()}-${file.name}`;
         const { publicUrl } = await uploadFileToBucket(supabase, DELIVERY_BUCKETS, file, path);
-        uploadedUrls.push(publicUrl);
+        nextCharacterSheetUrl = publicUrl;
       }
 
-      const nextDeliveryUrls = uniqueStrings([...uploadedUrls, ...deliveryAssetUrls]);
+      if (characterIconFiles[0]) {
+        const file = characterIconFiles[0];
+        const path = `${artistUserId}/${character.id}/character-icon-${Date.now()}-${file.name}`;
+        const { publicUrl } = await uploadFileToBucket(supabase, DELIVERY_BUCKETS, file, path);
+        nextCharacterIconUrl = publicUrl;
+      }
+
+      const nextDeliveryUrls = uniqueStrings(
+        [nextCharacterSheetUrl, nextCharacterIconUrl, ...deliveryAssetUrls].filter((url) => url.length > 0),
+      );
       const nextReferenceUrls = uniqueStrings(referenceImageUrls);
-      const nextImageUrls = uniqueStrings([...nextDeliveryUrls, ...nextReferenceUrls]);
+      const nextImageUrls = uniqueStrings([...nextReferenceUrls, ...nextDeliveryUrls]);
       const nextAppearance = {
         ...(appearance ?? {}),
         reference_image_urls: nextReferenceUrls,
@@ -255,6 +275,8 @@ export default function ArtistOrderDetailView({ orderId }: Props) {
         .from("characters")
         .update({
           status: "completed",
+          character_sheet_url: nextCharacterSheetUrl,
+          character_icon_url: nextCharacterIconUrl,
           image_urls: nextImageUrls,
           appearance_details: nextAppearance,
         })
@@ -268,10 +290,13 @@ export default function ArtistOrderDetailView({ orderId }: Props) {
       setCharacter({
         ...character,
         status: "completed",
+        character_sheet_url: nextCharacterSheetUrl,
+        character_icon_url: nextCharacterIconUrl,
         image_urls: nextImageUrls,
         appearance_details: nextAppearance,
       });
-      setDeliveryFiles([]);
+      setCharacterSheetFiles([]);
+      setCharacterIconFiles([]);
       setSuccessMessage("交稿完成，客戶端的角色資產庫已可讀取這筆完稿資料。");
       router.refresh();
     } catch (error) {
@@ -450,19 +475,53 @@ export default function ArtistOrderDetailView({ orderId }: Props) {
                 <h2 className="text-lg font-black text-slate-900">作品交付</h2>
               </div>
               <p className="mt-3 text-sm text-slate-600">
-                上傳完稿圖、三視圖或最終交付檔案。確認交付後，系統會將這筆角色自動標記為已完成，並同步到客戶端資產庫。
+                請分別上傳角色三視圖與角色 Icon。完成交付後，系統會同步更新客戶端角色縮圖與正式角色圖像。
               </p>
 
               <div className="mt-4 rounded-2xl border border-sky-100 bg-sky-50/50 p-4">
+                <p className="mb-3 text-sm font-semibold text-slate-900">上傳角色三視圖</p>
                 <FileUploadField
-                  id="artist-order-delivery-files"
-                  accept="image/*,.pdf,.zip,.psd,.clip"
-                  multiple
-                  files={deliveryFiles}
-                  onFilesChange={setDeliveryFiles}
-                  buttonText="選擇交稿檔案"
-                  emptyText="尚未選擇要交付的檔案"
+                  id="artist-order-character-sheet-upload"
+                  accept="image/*"
+                  files={characterSheetFiles}
+                  onFilesChange={setCharacterSheetFiles}
+                  buttonText="上傳角色三視圖"
+                  emptyText="尚未選擇角色三視圖"
                 />
+                {currentCharacterSheetUrl ? (
+                  <a
+                    href={currentCharacterSheetUrl}
+                    target="_blank"
+                    rel="noreferrer"
+                    className="mt-3 block overflow-hidden rounded-2xl border border-sky-100 bg-white transition hover:shadow-md"
+                  >
+                    <img src={currentCharacterSheetUrl} alt="目前角色三視圖" className="h-40 w-full object-cover" />
+                    <div className="px-4 py-3 text-sm font-medium text-sky-700">檢視目前角色三視圖</div>
+                  </a>
+                ) : null}
+              </div>
+
+              <div className="mt-4 rounded-2xl border border-sky-100 bg-sky-50/50 p-4">
+                <p className="mb-3 text-sm font-semibold text-slate-900">上傳角色臉部頭像 / Icon</p>
+                <FileUploadField
+                  id="artist-order-character-icon-upload"
+                  accept="image/*"
+                  files={characterIconFiles}
+                  onFilesChange={setCharacterIconFiles}
+                  buttonText="上傳角色 Icon"
+                  emptyText="尚未選擇角色 Icon"
+                />
+                {currentCharacterIconUrl ? (
+                  <a
+                    href={currentCharacterIconUrl}
+                    target="_blank"
+                    rel="noreferrer"
+                    className="mt-3 block overflow-hidden rounded-2xl border border-sky-100 bg-white transition hover:shadow-md"
+                  >
+                    <img src={currentCharacterIconUrl} alt="目前角色 Icon" className="h-40 w-full object-cover" />
+                    <div className="px-4 py-3 text-sm font-medium text-sky-700">檢視目前角色 Icon</div>
+                  </a>
+                ) : null}
               </div>
 
               <button
@@ -471,29 +530,36 @@ export default function ArtistOrderDetailView({ orderId }: Props) {
                 disabled={submitting}
                 className="mt-4 inline-flex w-full items-center justify-center rounded-xl bg-emerald-600 px-4 py-3 text-sm font-semibold text-white transition hover:bg-emerald-700 disabled:cursor-not-allowed disabled:bg-slate-300"
               >
-                {submitting ? "交付中..." : "確認交付"}
+                {submitting ? "交付中..." : "完成交付"}
               </button>
             </section>
 
             <section className="rounded-[24px] border border-sky-100 bg-white p-5 shadow-sm">
               <h2 className="text-lg font-black text-slate-900">已上傳完稿成果</h2>
-              {deliveryAssetUrls.length > 0 ? (
+              {currentCharacterSheetUrl || currentCharacterIconUrl ? (
                 <div className="mt-4 space-y-3">
-                  {deliveryAssetUrls.map((url, index) => {
-                    const isImage = /\.(png|jpe?g|gif|webp|svg)(\?|$)/i.test(url);
-                    return (
-                      <a
-                        key={`${url}-${index}`}
-                        href={url}
-                        target="_blank"
-                        rel="noreferrer"
-                        className="block overflow-hidden rounded-2xl border border-sky-100 bg-slate-50 transition hover:shadow-md"
-                      >
-                        {isImage ? <img src={url} alt={`完稿 ${index + 1}`} className="h-40 w-full object-cover" /> : null}
-                        <div className="px-4 py-3 text-sm font-medium text-sky-700">檢視交付檔案 {index + 1}</div>
-                      </a>
-                    );
-                  })}
+                  {currentCharacterIconUrl ? (
+                    <a
+                      href={currentCharacterIconUrl}
+                      target="_blank"
+                      rel="noreferrer"
+                      className="block overflow-hidden rounded-2xl border border-sky-100 bg-slate-50 transition hover:shadow-md"
+                    >
+                      <img src={currentCharacterIconUrl} alt="角色 Icon" className="h-40 w-full object-cover" />
+                      <div className="px-4 py-3 text-sm font-medium text-sky-700">角色 Icon</div>
+                    </a>
+                  ) : null}
+                  {currentCharacterSheetUrl ? (
+                    <a
+                      href={currentCharacterSheetUrl}
+                      target="_blank"
+                      rel="noreferrer"
+                      className="block overflow-hidden rounded-2xl border border-sky-100 bg-slate-50 transition hover:shadow-md"
+                    >
+                      <img src={currentCharacterSheetUrl} alt="角色三視圖" className="h-40 w-full object-cover" />
+                      <div className="px-4 py-3 text-sm font-medium text-sky-700">角色三視圖</div>
+                    </a>
+                  ) : null}
                 </div>
               ) : (
                 <p className="mt-4 text-sm text-slate-500">尚未上傳任何完稿成果。</p>

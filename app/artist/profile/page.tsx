@@ -8,6 +8,35 @@ import type { ArtistProfile, PortfolioItem } from "@/src/types/artist";
 
 const BUCKET = "artist-assets";
 
+type AuthorizedCharacter = {
+  id: string;
+  name: string;
+  artist_id: string | null;
+  status: string | null;
+  is_public_portfolio: boolean | null;
+  image_urls: string[] | null;
+  appearance_details: Record<string, unknown> | null;
+  created_at: string | null;
+};
+
+function parseStringArray(value: unknown) {
+  if (!Array.isArray(value)) {
+    return [] as string[];
+  }
+
+  return value.filter((item): item is string => typeof item === "string" && item.trim().length > 0);
+}
+
+function getCharacterPortfolioPreview(character: AuthorizedCharacter) {
+  const deliveryUrls = parseStringArray(character.appearance_details?.delivery_asset_urls);
+  if (deliveryUrls.length > 0) {
+    return deliveryUrls[0];
+  }
+
+  const imageUrls = parseStringArray(character.image_urls);
+  return imageUrls[0] ?? null;
+}
+
 export default function ArtistProfilePage() {
   const [profile, setProfile] = useState<ArtistProfile | null>(null);
   const [loading, setLoading] = useState(true);
@@ -17,7 +46,10 @@ export default function ArtistProfilePage() {
   const [status, setStatus] = useState<"idle" | "busy" | "closed">("idle");
   const [portfolioFiles, setPortfolioFiles] = useState<File[]>([]);
   const [portfolios, setPortfolios] = useState<PortfolioItem[]>([]);
+  const [authorizedCharacters, setAuthorizedCharacters] = useState<AuthorizedCharacter[]>([]);
+  const [selectedAuthorizedIds, setSelectedAuthorizedIds] = useState<string[]>([]);
   const [uploading, setUploading] = useState(false);
+  const [isImportingAuthorizedWorks, setIsImportingAuthorizedWorks] = useState(false);
   const router = useRouter();
 
   useEffect(() => {
@@ -47,6 +79,16 @@ export default function ArtistProfilePage() {
         .order("created_at", { ascending: false });
 
       setPortfolios((items as PortfolioItem[]) ?? []);
+
+      const { data: characterItems } = await supabase
+        .from("characters")
+        .select("id,name,artist_id,status,is_public_portfolio,image_urls,appearance_details,created_at")
+        .eq("artist_id", user.id)
+        .eq("status", "completed")
+        .eq("is_public_portfolio", true)
+        .order("created_at", { ascending: false });
+
+      setAuthorizedCharacters((characterItems as AuthorizedCharacter[]) ?? []);
       const role = profileData?.role ?? null;
       if (role === "customer") {
         console.warn("權限不足");
@@ -119,6 +161,27 @@ export default function ArtistProfilePage() {
     setPortfolios((items as PortfolioItem[]) ?? []);
   };
 
+  const fetchAuthorizedCharacters = async (artistId: string) => {
+    if (!supabase) {
+      return;
+    }
+
+    const { data, error } = await supabase
+      .from("characters")
+      .select("id,name,artist_id,status,is_public_portfolio,image_urls,appearance_details,created_at")
+      .eq("artist_id", artistId)
+      .eq("status", "completed")
+      .eq("is_public_portfolio", true)
+      .order("created_at", { ascending: false });
+
+    if (error) {
+      console.error("讀取授權委託作品失敗:", error.message);
+      return;
+    }
+
+    setAuthorizedCharacters((data as AuthorizedCharacter[]) ?? []);
+  };
+
   const handlePortfolioFiles = async (files: File[]) => {
     setPortfolioFiles(files);
     if (!files.length || !profile || !supabase) return;
@@ -188,6 +251,61 @@ export default function ArtistProfilePage() {
     }
 
     setPortfolios((prev) => prev.filter((p) => p.id !== item.id));
+  };
+
+  const handleToggleAuthorizedCharacter = (characterId: string) => {
+    setSelectedAuthorizedIds((current) =>
+      current.includes(characterId)
+        ? current.filter((id) => id !== characterId)
+        : [...current, characterId],
+    );
+  };
+
+  const handleImportAuthorizedWorks = async () => {
+    if (!profile || !supabase || selectedAuthorizedIds.length === 0) {
+      return;
+    }
+
+    const existingImageUrls = new Set(portfolios.map((item) => item.image_url));
+    const selectedCharacters = authorizedCharacters.filter((item) => selectedAuthorizedIds.includes(item.id));
+
+    const rowsToInsert = selectedCharacters
+      .map((character) => {
+        const previewUrl = getCharacterPortfolioPreview(character);
+        if (!previewUrl || existingImageUrls.has(previewUrl)) {
+          return null;
+        }
+
+        return {
+          artist_id: profile.id,
+          title: `${character.name}｜平台授權委託作品`,
+          image_url: previewUrl,
+          storage_path: null,
+          is_internal: false,
+          is_pinned: false,
+        };
+      })
+      .filter((item): item is NonNullable<typeof item> => item !== null);
+
+    if (rowsToInsert.length === 0) {
+      setSelectedAuthorizedIds([]);
+      return;
+    }
+
+    setIsImportingAuthorizedWorks(true);
+
+    const { error } = await supabase.from("portfolios").insert(rowsToInsert);
+
+    if (error) {
+      console.error("加入授權作品到作品集失敗:", error.message);
+      setIsImportingAuthorizedWorks(false);
+      return;
+    }
+
+    await fetchPortfolios(profile.id);
+    await fetchAuthorizedCharacters(profile.id);
+    setSelectedAuthorizedIds([]);
+    setIsImportingAuthorizedWorks(false);
   };
 
   if (loading) {
@@ -297,6 +415,66 @@ export default function ArtistProfilePage() {
           emptyText="未選擇任何檔案"
         />
         {uploading ? <div className="text-sm text-slate-500 mt-2">上傳中…</div> : null}
+      </section>
+
+      <section className="mb-8">
+        <div className="mb-3 flex items-center justify-between gap-3">
+          <div>
+            <h2 className="font-semibold">平台授權委託作品</h2>
+            <p className="mt-1 text-sm text-slate-500">可快速引用已完稿且客戶授權公開的角色作品，加入你的公開作品集。</p>
+          </div>
+          <button
+            className="rounded bg-emerald-600 px-4 py-2 text-sm font-semibold text-white disabled:cursor-not-allowed disabled:bg-slate-300"
+            onClick={() => {
+              void handleImportAuthorizedWorks();
+            }}
+            disabled={isImportingAuthorizedWorks || selectedAuthorizedIds.length === 0}
+          >
+            {isImportingAuthorizedWorks ? "加入中..." : `加入作品集 (${selectedAuthorizedIds.length})`}
+          </button>
+        </div>
+
+        {authorizedCharacters.length === 0 ? (
+          <div className="rounded border border-dashed p-4 text-sm text-slate-500">目前沒有可引用的授權委託作品。</div>
+        ) : (
+          <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
+            {authorizedCharacters.map((character) => {
+              const previewUrl = getCharacterPortfolioPreview(character);
+              const isSelected = selectedAuthorizedIds.includes(character.id);
+              const isAlreadyInPortfolio = previewUrl ? portfolios.some((item) => item.image_url === previewUrl) : false;
+
+              return (
+                <label key={character.id} className="flex gap-3 rounded-xl border p-3 cursor-pointer">
+                  <input
+                    type="checkbox"
+                    checked={isSelected}
+                    disabled={isAlreadyInPortfolio}
+                    onChange={() => handleToggleAuthorizedCharacter(character.id)}
+                    className="mt-1 h-4 w-4"
+                  />
+                  <div className="flex-1">
+                    <div className="flex items-start justify-between gap-3">
+                      <div>
+                        <div className="text-sm font-semibold text-slate-900">{character.name}</div>
+                        <div className="mt-1 text-xs text-slate-500">
+                          {isAlreadyInPortfolio ? "已加入作品集" : "可加入公開作品集"}
+                        </div>
+                      </div>
+                    </div>
+
+                    {previewUrl ? (
+                      <div className="mt-3 h-36 overflow-hidden rounded border bg-slate-50">
+                        <img src={previewUrl} alt={character.name} className="h-full w-full object-cover" />
+                      </div>
+                    ) : (
+                      <div className="mt-3 rounded border border-dashed p-4 text-sm text-slate-500">此角色目前沒有可用的預覽圖。</div>
+                    )}
+                  </div>
+                </label>
+              );
+            })}
+          </div>
+        )}
       </section>
 
       <section>
