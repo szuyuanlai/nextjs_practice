@@ -288,7 +288,7 @@ export default function CharactersListView() {
                           查看訂單進度
                         </Link>
                       </div>
-                    </div>
+                    )}
                   </div>
                 </article>
               );
