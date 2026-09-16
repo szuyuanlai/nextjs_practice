@@ -78,7 +78,7 @@ const MALE_BODY_TYPE_OPTIONS = [
 ];
 
 const MUSCLE_LEVEL_OPTIONS: string[] = ["瘦弱", "正常", "精壯", "超壯"];
-] as const;
+
 
 const REQUIRED_FIELDS_BY_STEP: Record<number, FieldName[]> = {
   1: ["name", "gender", "personalityText"],
@@ -132,7 +132,7 @@ export default function CharacterDNAForm() {
   );
 
   const stepTitle = useMemo(() => {
-    if (flowStep === "artist") return "選擇執筆繪師";
+    if (flowStep === "artist") return "選擇繪師";
     if (step === 1) return "基本身份與性格";
     return "外觀細節與參考素材";
   }, [flowStep, step]);
@@ -455,7 +455,7 @@ export default function CharacterDNAForm() {
         throw insertError;
       }
 
-      showToast("success", "角色與繪師綁定成功，正在前往角色詳情頁...");
+      showToast("success", "訂單成功送出，正在前往角色詳情頁...");
 
       const targetPath = insertedCharacter?.id ? `/characters/${insertedCharacter.id}` : "/characters";
       window.setTimeout(() => {
@@ -540,7 +540,7 @@ export default function CharacterDNAForm() {
               <article className="rounded-2xl border border-sky-100 bg-sky-50/40 p-4">
                 <h4 className="text-sm font-black text-slate-900">基本身份與性格</h4>
                 <p className="mt-2 text-sm text-slate-700">角色名稱：{form.name || "未填寫"}</p>
-                <p className="mt-1 text-sm text-slate-700">性別 / 性向：{form.gender || "未填寫"}</p>
+                <p className="mt-1 text-sm text-slate-700">性別 ：{form.gender || "未填寫"}</p>
                 <p className="mt-1 text-sm text-slate-700">
                   性格：{form.personalityText || "未設定"}
                 </p>
@@ -638,7 +638,7 @@ export default function CharacterDNAForm() {
 
           <label className="grid gap-2 text-sm font-medium text-slate-700">
             <span>
-              性別 / 性向設定 <span className="text-red-500">*</span>
+              性別  <span className="text-red-500">*</span>
             </span>
             <select
               ref={(element) => setFieldRef("gender", element)}
@@ -994,7 +994,7 @@ export default function CharacterDNAForm() {
               disabled={isSubmitting}
               className="inline-flex items-center gap-2 rounded-2xl bg-gradient-to-r from-emerald-500 to-cyan-600 px-5 py-2.5 text-sm font-semibold text-white shadow-lg shadow-emerald-100 transition hover:translate-y-[-1px] disabled:cursor-not-allowed disabled:opacity-70"
             >
-              完成並建立角色 DNA
+              提交角色訂單
             </button>
           )}
         </div>
