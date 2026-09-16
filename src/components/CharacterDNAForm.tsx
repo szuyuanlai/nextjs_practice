@@ -46,7 +46,7 @@ const STORAGE_BUCKET_CANDIDATES = ["character-references", "order-assets", "arti
 
 const initialForm: FormState = {
   name: "",
-  gender: "",
+  gender: "女性",
   personalityText: "",
   bio: "",
   hairstyle: "",
@@ -67,6 +67,17 @@ const BODY_TYPE_OPTIONS = [
   { label: "乙女 (M)", value: "乙女 (M)" },
   { label: "御姐 (L)", value: "御姐 (L)" },
   { label: "熟女 (XL)", value: "熟女 (XL)" },
+];
+
+const MALE_BODY_TYPE_OPTIONS = [
+  { label: "正太 (XS)", value: "正太 (XS)" },
+  { label: "少年 (S)", value: "少年 (S)" },
+  { label: "成男", value: "成男" },
+  { label: "熟男", value: "熟男" },
+  { label: "大叔", value: "大叔" },
+];
+
+const MUSCLE_LEVEL_OPTIONS: string[] = ["瘦弱", "正常", "精壯", "超壯"];
 ] as const;
 
 const REQUIRED_FIELDS_BY_STEP: Record<number, FieldName[]> = {
@@ -125,6 +136,10 @@ export default function CharacterDNAForm() {
     if (step === 1) return "基本身份與性格";
     return "外觀細節與參考素材";
   }, [flowStep, step]);
+
+  const isMaleCharacter = form.gender === "男性";
+  const bodyTypeOptions = isMaleCharacter ? MALE_BODY_TYPE_OPTIONS : BODY_TYPE_OPTIONS;
+  const bustOrMuscleLabel = isMaleCharacter ? "肌肉量" : "歐派大小";
 
   const setField = <K extends keyof FormState>(key: K, value: FormState[K]) => {
     setForm((current) => ({
@@ -534,7 +549,7 @@ export default function CharacterDNAForm() {
 
               <article className="rounded-2xl border border-sky-100 bg-sky-50/40 p-4">
                 <h4 className="text-sm font-black text-slate-900">外觀與外貌細節</h4>
-                <p className="mt-2 text-sm text-slate-700">發型：{form.hairstyle || "未填寫"}</p>
+                <p className="mt-2 text-sm text-slate-700">髮型：{form.hairstyle || "未填寫"}</p>
                 <div className="mt-1 flex items-center gap-2 text-sm text-slate-700">
                   <span>髮色：</span>
                   <span className="inline-block h-4 w-4 rounded-full border border-slate-300" style={{ backgroundColor: form.hairColor }} />
@@ -547,7 +562,7 @@ export default function CharacterDNAForm() {
                   <span>{form.eyeColor}</span>
                 </div>
                 <p className="mt-1 text-sm text-slate-700">身高 / 體型：{form.heightBodyType || "未填寫"}</p>
-                <p className="mt-1 text-sm text-slate-700">歐派大小：{form.bustSize || "未填寫"}</p>
+                <p className="mt-1 text-sm text-slate-700">{bustOrMuscleLabel}：{form.bustSize || "未填寫"}</p>
                 <div className="mt-1 flex items-center gap-2 text-sm text-slate-700">
                   <span>主題色：</span>
                   <span className="inline-block h-4 w-4 rounded-full border border-slate-300" style={{ backgroundColor: form.themeColor }} />
@@ -625,16 +640,22 @@ export default function CharacterDNAForm() {
             <span>
               性別 / 性向設定 <span className="text-red-500">*</span>
             </span>
-            <input
+            <select
               ref={(element) => setFieldRef("gender", element)}
               value={form.gender}
-              onChange={(event) => setField("gender", event.target.value)}
-              placeholder="例如：女性、非二元、男性向、百合向"
+              onChange={(event) => {
+                setField("gender", event.target.value);
+                setField("heightBodyType", "");
+                setField("bustSize", "");
+              }}
               className={getInputClassName(
                 "gender",
-                "rounded-2xl border border-sky-100 bg-sky-50/60 px-4 py-3 text-slate-800 placeholder:text-slate-400 focus:border-sky-400 focus:outline-none",
+                "rounded-2xl border border-sky-100 bg-sky-50/60 px-4 py-3 text-slate-800 focus:border-sky-400 focus:outline-none",
               )}
-            />
+            >
+              <option value="女性">女性</option>
+              <option value="男性">男性</option>
+            </select>
             {fieldErrors.gender ? <p className="text-xs font-semibold text-rose-600">{fieldErrors.gender}</p> : null}
           </label>
 
@@ -689,7 +710,7 @@ export default function CharacterDNAForm() {
       {flowStep === "form" && step === 2 ? (
         <div className="grid gap-6">
           <label className="grid gap-2 text-sm font-medium text-slate-700">
-            <span>發型</span>
+            <span>髮型</span>
             <input
               value={form.hairstyle}
               onChange={(event) => setField("hairstyle", event.target.value)}
@@ -748,7 +769,7 @@ export default function CharacterDNAForm() {
               )}
             >
               <option value="">請選擇體型</option>
-              {BODY_TYPE_OPTIONS.map((option) => (
+              {bodyTypeOptions.map((option) => (
                 <option key={option.value} value={option.value}>
                   {option.label}
                 </option>
@@ -761,18 +782,37 @@ export default function CharacterDNAForm() {
 
           <label className="grid gap-2 text-sm font-medium text-slate-700">
             <span>
-              歐派大小 <span className="text-red-500">*</span>
+              {bustOrMuscleLabel} <span className="text-red-500">*</span>
             </span>
-            <input
-              ref={(element) => setFieldRef("bustSize", element)}
-              value={form.bustSize}
-              onChange={(event) => setField("bustSize", event.target.value)}
-              placeholder="A (最小) - Z (最大)"
-              className={getInputClassName(
-                "bustSize",
-                "rounded-2xl border border-sky-100 bg-sky-50/60 px-4 py-3 text-slate-800 placeholder:text-slate-400 focus:border-sky-400 focus:outline-none",
-              )}
-            />
+            {isMaleCharacter ? (
+              <select
+                ref={(element) => setFieldRef("bustSize", element)}
+                value={form.bustSize}
+                onChange={(event) => setField("bustSize", event.target.value)}
+                className={getInputClassName(
+                  "bustSize",
+                  "rounded-2xl border border-sky-100 bg-sky-50/60 px-4 py-3 text-slate-800 focus:border-sky-400 focus:outline-none",
+                )}
+              >
+                <option value="">請選擇肌肉量</option>
+                {MUSCLE_LEVEL_OPTIONS.map((option) => (
+                  <option key={option} value={option}>
+                    {option}
+                  </option>
+                ))}
+              </select>
+            ) : (
+              <input
+                ref={(element) => setFieldRef("bustSize", element)}
+                value={form.bustSize}
+                onChange={(event) => setField("bustSize", event.target.value)}
+                placeholder="A (最小) - Z (最大)"
+                className={getInputClassName(
+                  "bustSize",
+                  "rounded-2xl border border-sky-100 bg-sky-50/60 px-4 py-3 text-slate-800 placeholder:text-slate-400 focus:border-sky-400 focus:outline-none",
+                )}
+              />
+            )}
             {fieldErrors.bustSize ? <p className="text-xs font-semibold text-rose-600">{fieldErrors.bustSize}</p> : null}
           </label>
 

@@ -21,6 +21,11 @@ type AuthorizedCharacter = {
   created_at: string | null;
 };
 
+type AuthLikeUser = {
+  user_metadata?: Record<string, unknown>;
+  app_metadata?: Record<string, unknown>;
+};
+
 function parseStringArray(value: unknown) {
   if (!Array.isArray(value)) {
     return [] as string[];
@@ -39,10 +44,29 @@ function getCharacterPortfolioPreview(character: AuthorizedCharacter) {
   return imageUrls[0] ?? null;
 }
 
+function readOAuthCoverUrl(user: AuthLikeUser | null | undefined) {
+  const metadata = user?.user_metadata ?? {};
+  const candidates = [
+    metadata.banner_url,
+    metadata.cover_url,
+    metadata.profile_banner_url,
+    metadata.banner,
+  ];
+
+  for (const candidate of candidates) {
+    if (typeof candidate === "string" && candidate.trim().length > 0) {
+      return candidate.trim();
+    }
+  }
+
+  return null;
+}
+
 export default function ArtistProfilePage() {
   const [profile, setProfile] = useState<ArtistProfile | null>(null);
   const [loading, setLoading] = useState(true);
   const [avatarFile, setAvatarFile] = useState<File | null>(null);
+  const [coverFile, setCoverFile] = useState<File | null>(null);
   const [fullName, setFullName] = useState("");
   const [bio, setBio] = useState("");
   const [status, setStatus] = useState<"idle" | "busy" | "closed">("idle");
@@ -69,10 +93,26 @@ export default function ArtistProfilePage() {
 
       const { data: prof } = await supabase.from("profiles").select("*").eq("id", user.id).maybeSingle();
       const profileData = prof as ArtistProfile | null;
-      setProfile(profileData);
-      setFullName(profileData?.full_name ?? "");
-      setBio(profileData?.bio ?? "");
-      setStatus(profileData?.status ?? "idle");
+      const provider = String(user.app_metadata?.provider ?? "").toLowerCase();
+      const oauthCoverUrl = provider === "x" ? readOAuthCoverUrl(user as AuthLikeUser) : null;
+      const existingCoverUrl = profileData?.cover_url?.trim() || null;
+      const resolvedCoverUrl = existingCoverUrl || oauthCoverUrl;
+
+      if (resolvedCoverUrl && resolvedCoverUrl !== existingCoverUrl) {
+        await supabase.from("profiles").update({ cover_url: resolvedCoverUrl }).eq("id", user.id);
+      }
+
+      const mergedProfile = profileData
+        ? {
+            ...profileData,
+            cover_url: resolvedCoverUrl,
+          }
+        : profileData;
+
+      setProfile(mergedProfile);
+      setFullName(mergedProfile?.full_name ?? "");
+      setBio(mergedProfile?.bio ?? "");
+      setStatus(mergedProfile?.status ?? "idle");
 
       const { data: items } = await supabase
         .from("portfolios")
@@ -91,7 +131,7 @@ export default function ArtistProfilePage() {
         .order("created_at", { ascending: false });
 
       setAuthorizedCharacters((characterItems as AuthorizedCharacter[]) ?? []);
-      const role = profileData?.role ?? null;
+      const role = mergedProfile?.role ?? null;
       if (role === "customer") {
         console.warn("權限不足");
         router.push("/");
@@ -106,6 +146,10 @@ export default function ArtistProfilePage() {
 
   const handleAvatarChange = (files: File[]) => {
     setAvatarFile(files[0] ?? null);
+  };
+
+  const handleCoverChange = (files: File[]) => {
+    setCoverFile(files[0] ?? null);
   };
 
   const uploadAvatar = async () => {
@@ -147,6 +191,33 @@ export default function ArtistProfilePage() {
     }
     setProfile({ ...profile, full_name: fullName.trim(), bio, status });
     console.log("已儲存");
+  };
+
+  const uploadCover = async () => {
+    if (!coverFile || !supabase || !profile) return;
+    setUploading(true);
+    const path = `${profile.id}/cover-${Date.now()}-${coverFile.name}`;
+
+    const { error: upErr } = await supabase.storage.from(BUCKET).upload(path, coverFile, { upsert: true });
+    if (upErr) {
+      console.error("封面上傳失敗: ", upErr.message);
+      setUploading(false);
+      return;
+    }
+
+    const { data: publicData } = supabase.storage.from(BUCKET).getPublicUrl(path);
+    const publicUrl = publicData.publicUrl;
+
+    const { error: upd } = await supabase.from("profiles").update({ cover_url: publicUrl }).eq("id", profile.id);
+    if (upd) {
+      console.error("更新封面失敗: ", upd.message);
+      setUploading(false);
+      return;
+    }
+
+    setProfile({ ...profile, cover_url: publicUrl });
+    setCoverFile(null);
+    setUploading(false);
   };
 
   const fetchPortfolios = async (artistId: string) => {
@@ -317,17 +388,17 @@ export default function ArtistProfilePage() {
   }> = [
     {
       value: "idle",
-      label: "空閒中 / 可接受委託",
+      label: "可接委託",
       chipClassName: "bg-emerald-500 text-white",
     },
     {
       value: "busy",
-      label: "爆滿中 / 需排單",
+      label: "需排單",
       chipClassName: "bg-amber-500 text-white",
     },
     {
       value: "closed",
-      label: "暫停接單 / 停止",
+      label: "暫停接單",
       chipClassName: "bg-rose-500 text-white",
     },
   ];
@@ -362,6 +433,46 @@ export default function ArtistProfilePage() {
 
         <section className="mb-6 grid gap-5 rounded-2xl border border-sky-100 bg-white p-6 shadow-sm lg:grid-cols-[0.95fr_1.05fr] sm:p-8">
           <article className="rounded-2xl border border-sky-100 bg-sky-50/40 p-5">
+            <h2 className="mb-4 text-lg font-black text-slate-900">封面背景圖</h2>
+            <div className="overflow-hidden rounded-2xl border border-sky-100 bg-[linear-gradient(120deg,#dbeafe_0%,#e0f2fe_45%,#f0f9ff_100%)]">
+              {profile?.cover_url ? (
+                // eslint-disable-next-line @next/next/no-img-element
+                <img src={profile.cover_url} alt="cover" className="aspect-video w-full object-cover" />
+              ) : (
+                <div className="aspect-video w-full" />
+              )}
+            </div>
+
+            <div className="mt-3">
+              <FileUploadField
+                id="artist-profile-cover-upload"
+                accept="image/*"
+                files={coverFile ? [coverFile] : []}
+                onFilesChange={handleCoverChange}
+                buttonText="上傳封面圖片"
+                emptyText="未選擇任何檔案"
+              />
+              <div className="mt-2 flex flex-wrap gap-2">
+                <button
+                  type="button"
+                  className="inline-flex items-center gap-2 rounded-full bg-slate-900 px-4 py-2 text-sm font-semibold text-white transition hover:bg-slate-700 disabled:cursor-not-allowed disabled:bg-slate-300"
+                  onClick={uploadCover}
+                  disabled={!coverFile || uploading}
+                >
+                  <UploadCloud className="h-4 w-4" />
+                  {uploading ? "上傳中..." : "更新封面"}
+                </button>
+                <button
+                  type="button"
+                  className="rounded-full border border-slate-200 bg-white px-4 py-2 text-sm font-semibold text-slate-700 transition hover:bg-slate-50 disabled:cursor-not-allowed disabled:opacity-50"
+                  onClick={() => setCoverFile(null)}
+                  disabled={uploading}
+                >
+                  取消
+                </button>
+              </div>
+            </div>
+
             <h2 className="mb-4 text-lg font-black text-slate-900">大頭貼更新</h2>
             <div className="flex items-center gap-4">
               <div className="h-24 w-24 overflow-hidden rounded-full border border-sky-200 bg-white shadow-sm">

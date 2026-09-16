@@ -113,11 +113,12 @@ export default function ArtistPage({ params }: Props) {
 
   const status = artist?.status ?? "idle";
   const statusConfigMap: Record<string, { label: string; className: string }> = {
-    idle: { label: "🟢 可接委託", className: "bg-emerald-50 text-emerald-700 ring-1 ring-emerald-200" },
-    busy: { label: "🟡 爆滿中", className: "bg-yellow-50 text-yellow-700 ring-1 ring-yellow-200" },
-    closed: { label: "🔴 暫停接單", className: "bg-rose-50 text-rose-700 ring-1 ring-rose-200" },
+    idle: { label: "可接委託", className: "bg-emerald-500 text-white" },
+    busy: { label: "需排單", className: "bg-amber-500 text-white" },
+    closed: { label: "暫停接單", className: "bg-rose-500 text-white" },
   };
   const statusConfig = statusConfigMap[status] ?? statusConfigMap.idle;
+  const coverUrl = artist?.cover_url?.trim() || "";
 
   const portfolioCount = publicPortfolios.length;
   const highlightTags = ["角色設計", "品牌聯名", "人設表現", "可愛系風格"];
@@ -158,9 +159,19 @@ export default function ArtistPage({ params }: Props) {
         </Link>
 
         <section className="mb-10 overflow-hidden rounded-[32px] border border-sky-100 bg-white shadow-[0_24px_80px_rgba(14,116,144,0.08)]">
+          <div className="relative aspect-video overflow-hidden border-b border-sky-100 bg-[linear-gradient(120deg,#dbeafe_0%,#e0f2fe_45%,#f0f9ff_100%)] sm:aspect-[16/5]">
+            {coverUrl ? (
+              // eslint-disable-next-line @next/next/no-img-element
+              <img src={coverUrl} alt={`${artist.full_name ?? "artist"} cover`} className="h-full w-full object-cover" />
+            ) : null}
+            <span className={`absolute right-3 top-3 inline-flex rounded-md px-2.5 py-1 text-sm font-bold ${statusConfig.className}`}>
+              {statusConfig.label}
+            </span>
+          </div>
+
           <div className="grid gap-8 p-6 sm:p-8 lg:grid-cols-[0.9fr_1.1fr] lg:p-10">
             <div className="flex items-center justify-center lg:justify-start">
-              <div className="h-40 w-40 overflow-hidden rounded-full border-4 border-sky-100 bg-slate-100 shadow-lg sm:h-52 sm:w-52">
+              <div className="-mt-12 h-40 w-40 overflow-hidden rounded-full border-4 border-white bg-slate-100 shadow-lg sm:h-52 sm:w-52">
                 {artist.avatar_url ? (
                   // eslint-disable-next-line @next/next/no-img-element
                   <img src={artist.avatar_url} alt={artist.full_name ?? "artist"} className="h-full w-full object-cover" />
@@ -175,14 +186,14 @@ export default function ArtistPage({ params }: Props) {
             <div className="flex flex-col justify-center">
               <div className="mb-3 inline-flex w-fit items-center gap-2 rounded-full border border-sky-200 bg-sky-50 px-3 py-1 text-[11px] font-semibold uppercase tracking-[0.2em] text-sky-700">
                 <Sparkles className="h-3.5 w-3.5" />
-                {artist.role === "admin" ? "品牌管理者" : "聯名繪師"}
+                聯名繪師
               </div>
 
               <h1 className="text-3xl font-black tracking-tight text-slate-900 sm:text-4xl">
                 {artist.full_name ?? "聯名畫師"}
               </h1>
 
-              <div className={`mt-4 inline-flex w-fit items-center rounded-full px-3 py-1.5 text-sm font-semibold ${statusConfig.className}`}>
+              <div className={`mt-4 inline-flex w-fit items-center rounded-md px-2.5 py-1 text-sm font-bold ${statusConfig.className}`}>
                 {statusConfig.label}
               </div>
 
