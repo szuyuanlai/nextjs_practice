@@ -18,7 +18,7 @@ export async function fetchArtistSpotlights(supabase: any) {
   const { data: profiles, error } = await supabase
     .from("profiles")
     .select("id, full_name, display_name, avatar_url, bio, status, role")
-    .in("role", ["ARTIST", "ADMIN"])
+    .eq("role", "ARTIST")
     .order("full_name", { ascending: true });
 
   console.log("Artists fetched:", profiles, error);

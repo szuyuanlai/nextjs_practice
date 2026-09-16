@@ -1,48 +1,10 @@
 "use client";
 
 import Link from "next/link";
-import { useEffect, useState } from "react";
-import { ArrowLeft, Loader2, Palette, Sparkles } from "lucide-react";
+import { ArrowLeft, Palette, Sparkles } from "lucide-react";
 import { ArtistMarquee } from "@/src/components/ArtistMarquee";
-import { getSupabaseClient } from "@/src/lib/supabase/client";
 
 export default function ArtistsPage() {
-  const [statusMessage, setStatusMessage] = useState("載入中...");
-
-  useEffect(() => {
-    let isCancelled = false;
-
-    const loadArtists = async () => {
-      const supabase = getSupabaseClient();
-
-      if (!supabase) {
-        if (!isCancelled) {
-          setStatusMessage("Supabase 尚未設定，顯示預設展示內容。");
-        }
-        return;
-      }
-
-      const { count, error } = await supabase.from("profiles").select("id", { count: "exact", head: true });
-
-      if (isCancelled) {
-        return;
-      }
-
-      if (error) {
-        setStatusMessage(`繪師資料讀取失敗：${error.message}`);
-        return;
-      }
-
-      setStatusMessage(`目前可讀取的 profile 數量：約 ${count ?? 0} 筆，可用來呈現合作繪師名單。`);
-    };
-
-    void loadArtists();
-
-    return () => {
-      isCancelled = true;
-    };
-  }, []);
-
   return (
     <main className="min-h-screen bg-[linear-gradient(180deg,#f1fbff_0%,#edf7ff_18%,#ffffff_100%)] px-4 py-8 text-slate-800 sm:px-6 lg:px-8">
       <div className="mx-auto max-w-6xl">
@@ -60,11 +22,6 @@ export default function ArtistsPage() {
           <p className="mt-3 max-w-3xl text-slate-600">
             瀏覽可合作的畫師，查看風格、作品與公開資料，快速找到適合的創作者。
           </p>
-        </section>
-
-        <section className="mb-6 flex items-center gap-3 rounded-2xl border border-sky-100 bg-white px-4 py-3 shadow-sm">
-          <Loader2 className="h-4 w-4 animate-spin text-sky-600" />
-          <p className="text-sm text-slate-600">{statusMessage}</p>
         </section>
 
         <section className="rounded-[30px] border border-sky-100 bg-white p-5 shadow-sm sm:p-6">

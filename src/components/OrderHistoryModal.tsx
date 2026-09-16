@@ -1,5 +1,6 @@
 "use client";
 
+import Link from "next/link";
 import { useEffect, useState } from "react";
 import { ClipboardList, Loader2, Sparkles, X } from "lucide-react";
 import { supabase } from "@/src/lib/supabase/client";
@@ -132,16 +133,17 @@ export function OrderHistoryModal({
           </div>
         ) : (
           <div className="overflow-hidden rounded-2xl border border-sky-100">
-            <div className="grid grid-cols-[1.4fr_0.9fr_1.1fr_1.1fr] gap-3 bg-sky-50 px-4 py-3 text-xs font-semibold uppercase tracking-[0.18em] text-sky-700">
+            <div className="grid grid-cols-[1.2fr_0.8fr_0.9fr_0.9fr_1fr] gap-3 bg-sky-50 px-4 py-3 text-xs font-semibold uppercase tracking-[0.18em] text-sky-700">
               <span>角色名稱</span>
               <span>身材設定</span>
               <span>性格設定</span>
               <span>狀態</span>
+              <span>詳情</span>
             </div>
 
             <div className="divide-y divide-sky-100 bg-white">
               {orders.map((order) => (
-                <div key={order.id} className="grid grid-cols-[1.4fr_0.9fr_1.1fr_1.1fr] gap-3 px-4 py-4 text-sm text-slate-700">
+                <div key={order.id} className="grid grid-cols-[1.2fr_0.8fr_0.9fr_0.9fr_1fr] gap-3 px-4 py-4 text-sm text-slate-700">
                   <div>
                     <p className="font-bold text-slate-900">{order.character_name}</p>
                     <p className="mt-1 text-xs text-slate-500">
@@ -154,6 +156,15 @@ export function OrderHistoryModal({
                     <span className="inline-flex rounded-full border border-sky-200 bg-sky-50 px-2.5 py-1 text-xs font-semibold text-sky-700">
                       {getStatusLabel(order.status)}
                     </span>
+                  </div>
+                  <div>
+                    <Link
+                      href={`/orders/${order.id}`}
+                      onClick={onClose}
+                      className="inline-flex items-center justify-center rounded-lg border border-sky-200 bg-sky-50 px-2.5 py-1 text-xs font-semibold text-sky-700 transition hover:bg-sky-100"
+                    >
+                      查看進度 / 詳情
+                    </Link>
                   </div>
                 </div>
               ))}

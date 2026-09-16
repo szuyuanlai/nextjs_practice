@@ -3,7 +3,7 @@
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useEffect, useState } from "react";
-import { ArrowLeft, ClipboardList, Loader2, ShieldAlert } from "lucide-react";
+import { ArrowLeft, ArrowRight, ClipboardList, Loader2, ShieldAlert } from "lucide-react";
 import { supabase } from "@/src/lib/supabase/client";
 
 type OrderStatus = "pending" | "approved" | "rejected" | "completed";
@@ -166,6 +166,16 @@ export default function OrdersPage() {
                       </div>
                     ) : null}
                   </div>
+                </div>
+
+                <div className="mt-5 border-t border-sky-100 pt-4">
+                  <Link
+                    href={`/orders/${order.id}`}
+                    className="inline-flex items-center justify-center gap-2 rounded-xl border border-sky-200 bg-sky-50 px-4 py-2.5 text-sm font-semibold text-sky-700 transition hover:bg-sky-100"
+                  >
+                    查看訂單進度 / 詳情
+                    <ArrowRight className="h-4 w-4" />
+                  </Link>
                 </div>
               </article>
             ))}

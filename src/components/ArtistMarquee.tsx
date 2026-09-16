@@ -43,7 +43,7 @@ export function ArtistMarquee() {
         const { data, error } = await supabase
           .from("profiles")
           .select("*")
-          .in("role", ["ARTIST", "ADMIN"]);
+          .eq("role", "ARTIST");
 
         console.log("Fetching artists...", { data, error });
 
@@ -92,12 +92,12 @@ export function ArtistMarquee() {
         {marqueeArtists.map((artist, index) => {
           const artistName = artist.display_name ?? artist.full_name ?? "聯名畫師";
           const normalizedStatus = normalizeArtistStatus(artist.status);
-          const statusLabel =
+          const statusConfig =
             normalizedStatus === "idle"
-              ? "🟢 可接委託"
+              ? { label: "空閒中 / 可接受委託", className: "bg-emerald-500 text-white" }
               : normalizedStatus === "busy"
-                ? "🟡 爆滿中"
-                : "🔴 暫停接單";
+                ? { label: "爆滿中 / 需排單", className: "bg-amber-500 text-white" }
+                : { label: "暫停接單 / 停止", className: "bg-rose-500 text-white" };
 
           return (
             <article
@@ -117,14 +117,23 @@ export function ArtistMarquee() {
                 </div>
                 <div className="min-w-0 flex-1">
                   <h3 className="truncate text-lg font-black text-slate-900">{artistName}</h3>
-                  <p className="text-xs font-semibold text-sky-700">{artist.role?.toUpperCase() === "ADMIN" ? "品牌管理者" : "聯名畫師"}</p>
+                  <p className="text-xs font-semibold text-sky-700">聯名畫師</p>
                 </div>
               </div>
 
               <p className="mb-4 line-clamp-3 text-sm leading-6 text-slate-600">
                 {artist.bio ?? "熱愛角色設計與品牌故事共創，正在準備更多作品分享。"}
               </p>
-              <div className="mb-4 text-xs font-medium text-slate-600">{statusLabel}</div>
+              <div className="mb-4">
+                <span
+                  className={[
+                    "inline-flex rounded-md px-2.5 py-1 text-xs font-bold tracking-wide",
+                    statusConfig.className,
+                  ].join(" ")}
+                >
+                  {statusConfig.label}
+                </span>
+              </div>
 
               <Link
                 href={`/artists/${artist.id}`}

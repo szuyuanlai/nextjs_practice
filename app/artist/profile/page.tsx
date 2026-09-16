@@ -1,7 +1,9 @@
 "use client";
 
 import React, { useEffect, useState } from "react";
+import Link from "next/link";
 import { useRouter } from "next/navigation";
+import { ArrowLeft, Loader2, Save, Sparkles, UploadCloud } from "lucide-react";
 import { supabase } from "@/src/lib/supabase/client";
 import FileUploadField from "@/src/components/FileUploadField";
 import type { ArtistProfile, PortfolioItem } from "@/src/types/artist";
@@ -308,198 +310,277 @@ export default function ArtistProfilePage() {
     setIsImportingAuthorizedWorks(false);
   };
 
+  const statusOptions: Array<{
+    value: "idle" | "busy" | "closed";
+    label: string;
+    chipClassName: string;
+  }> = [
+    {
+      value: "idle",
+      label: "空閒中 / 可接受委託",
+      chipClassName: "bg-emerald-500 text-white",
+    },
+    {
+      value: "busy",
+      label: "爆滿中 / 需排單",
+      chipClassName: "bg-amber-500 text-white",
+    },
+    {
+      value: "closed",
+      label: "暫停接單 / 停止",
+      chipClassName: "bg-rose-500 text-white",
+    },
+  ];
+
   if (loading) {
-    return <div className="p-8">載入中…</div>;
+    return (
+      <main className="flex min-h-screen items-center justify-center bg-[linear-gradient(180deg,#f1fbff_0%,#edf7ff_18%,#ffffff_100%)] px-4">
+        <div className="flex items-center gap-3 rounded-2xl border border-sky-100 bg-white px-5 py-4 text-slate-600 shadow-sm">
+          <Loader2 className="h-5 w-5 animate-spin text-sky-600" />
+          載入繪師設定中...
+        </div>
+      </main>
+    );
   }
 
   return (
-    <div className="max-w-4xl mx-auto p-6">
-      <h1 className="text-2xl font-bold mb-4">繪師設定</h1>
+    <main className="min-h-screen bg-[linear-gradient(180deg,#f1fbff_0%,#edf7ff_18%,#ffffff_100%)] px-4 py-8 text-slate-800 sm:px-6 lg:px-8">
+      <div className="mx-auto max-w-5xl">
+        <Link href="/" className="mb-6 inline-flex items-center gap-2 text-sm font-medium text-sky-700 transition hover:text-sky-800">
+          <ArrowLeft className="h-4 w-4" />
+          返回首頁
+        </Link>
 
-      <section className="mb-6">
-        <h2 className="font-semibold mb-2">大頭貼</h2>
-        <div className="flex items-center gap-4">
-          <div className="h-24 w-24 overflow-hidden rounded-full border bg-slate-50">
-            {profile?.avatar_url ? (
-              // eslint-disable-next-line @next/next/no-img-element
-              <img src={profile.avatar_url} alt="avatar" className="h-full w-full object-cover" />
-            ) : (
-              <div className="h-full w-full flex items-center justify-center text-slate-400">暫無</div>
-            )}
-          </div>
+        <section className="mb-6 rounded-2xl border border-sky-100 bg-white p-6 shadow-sm sm:p-8">
+          <p className="mb-2 inline-flex items-center gap-2 rounded-full border border-sky-200 bg-sky-50 px-3 py-1 text-[11px] font-semibold uppercase tracking-[0.2em] text-sky-700">
+            <Sparkles className="h-3.5 w-3.5" />
+            Artist Profile Settings
+          </p>
+          <h1 className="text-3xl font-black tracking-tight text-slate-900">繪師設定</h1>
+          <p className="mt-2 text-sm text-slate-600">更新你的大頭貼、接單狀態與作品集，維持一致的品牌視覺質感。</p>
+        </section>
 
-          <div className="flex flex-col gap-2">
-            <FileUploadField
-              id="artist-profile-avatar-upload"
-              accept="image/*"
-              files={avatarFile ? [avatarFile] : []}
-              onFilesChange={handleAvatarChange}
-              buttonText="上傳圖片"
-              emptyText="未選擇任何檔案"
-            />
-            <div className="flex gap-2">
-              <button
-                className="rounded bg-sky-600 px-3 py-1 text-white"
-                onClick={uploadAvatar}
-                disabled={!avatarFile || uploading}
-              >
-                上傳並更新
-              </button>
-              <button
-                className="rounded border px-3 py-1"
-                onClick={() => setAvatarFile(null)}
-                disabled={uploading}
-              >
-                取消
-              </button>
-            </div>
-          </div>
-        </div>
-      </section>
+        <section className="mb-6 grid gap-5 rounded-2xl border border-sky-100 bg-white p-6 shadow-sm lg:grid-cols-[0.95fr_1.05fr] sm:p-8">
+          <article className="rounded-2xl border border-sky-100 bg-sky-50/40 p-5">
+            <h2 className="mb-4 text-lg font-black text-slate-900">大頭貼更新</h2>
+            <div className="flex items-center gap-4">
+              <div className="h-24 w-24 overflow-hidden rounded-full border border-sky-200 bg-white shadow-sm">
+                {profile?.avatar_url ? (
+                  // eslint-disable-next-line @next/next/no-img-element
+                  <img src={profile.avatar_url} alt="avatar" className="h-full w-full object-cover" />
+                ) : (
+                  <div className="flex h-full w-full items-center justify-center text-sm font-semibold text-slate-400">暫無</div>
+                )}
+              </div>
 
-      <section className="mb-6">
-        <h2 className="font-semibold mb-2">顯示名稱</h2>
-        <input
-          value={fullName}
-          onChange={(e) => setFullName(e.target.value)}
-          className="w-full rounded border p-2 text-sm"
-          placeholder="輸入你的名稱"
-        />
-      </section>
-
-      <section className="mb-6">
-        <h2 className="font-semibold mb-2">自我介紹</h2>
-        <textarea
-          value={bio}
-          onChange={(e) => setBio(e.target.value)}
-          className="w-full rounded border p-2 text-sm"
-          rows={6}
-        />
-      </section>
-
-      <section className="mb-6">
-        <h2 className="font-semibold mb-2">接單狀態</h2>
-        <div className="flex items-center gap-4">
-          <label className="flex items-center gap-2">
-            <input type="radio" name="status" checked={status === "idle"} onChange={() => setStatus("idle")} />
-            <span>🟢 空閒中 / 可接委託</span>
-          </label>
-          <label className="flex items-center gap-2">
-            <input type="radio" name="status" checked={status === "busy"} onChange={() => setStatus("busy")} />
-            <span>🟡 爆滿中 / 需排單</span>
-          </label>
-          <label className="flex items-center gap-2">
-            <input type="radio" name="status" checked={status === "closed"} onChange={() => setStatus("closed")} />
-            <span>🔴 暫停接單</span>
-          </label>
-        </div>
-      </section>
-
-      <div className="mb-8">
-        <button className="rounded bg-sky-600 px-4 py-2 text-white" onClick={saveBioAndStatus}>
-          儲存設定
-        </button>
-      </div>
-
-      <section className="mb-6">
-        <h2 className="font-semibold mb-2">作品集上傳</h2>
-        <FileUploadField
-          id="artist-profile-portfolio-upload"
-          accept="image/*"
-          multiple
-          files={portfolioFiles}
-          onFilesChange={(files) => {
-            void handlePortfolioFiles(files);
-          }}
-          buttonText="上傳圖片"
-          emptyText="未選擇任何檔案"
-        />
-        {uploading ? <div className="text-sm text-slate-500 mt-2">上傳中…</div> : null}
-      </section>
-
-      <section className="mb-8">
-        <div className="mb-3 flex items-center justify-between gap-3">
-          <div>
-            <h2 className="font-semibold">平台授權委託作品</h2>
-            <p className="mt-1 text-sm text-slate-500">可快速引用已完稿且客戶授權公開的角色作品，加入你的公開作品集。</p>
-          </div>
-          <button
-            className="rounded bg-emerald-600 px-4 py-2 text-sm font-semibold text-white disabled:cursor-not-allowed disabled:bg-slate-300"
-            onClick={() => {
-              void handleImportAuthorizedWorks();
-            }}
-            disabled={isImportingAuthorizedWorks || selectedAuthorizedIds.length === 0}
-          >
-            {isImportingAuthorizedWorks ? "加入中..." : `加入作品集 (${selectedAuthorizedIds.length})`}
-          </button>
-        </div>
-
-        {authorizedCharacters.length === 0 ? (
-          <div className="rounded border border-dashed p-4 text-sm text-slate-500">目前沒有可引用的授權委託作品。</div>
-        ) : (
-          <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
-            {authorizedCharacters.map((character) => {
-              const previewUrl = getCharacterPortfolioPreview(character);
-              const isSelected = selectedAuthorizedIds.includes(character.id);
-              const isAlreadyInPortfolio = previewUrl ? portfolios.some((item) => item.image_url === previewUrl) : false;
-
-              return (
-                <label key={character.id} className="flex gap-3 rounded-xl border p-3 cursor-pointer">
-                  <input
-                    type="checkbox"
-                    checked={isSelected}
-                    disabled={isAlreadyInPortfolio}
-                    onChange={() => handleToggleAuthorizedCharacter(character.id)}
-                    className="mt-1 h-4 w-4"
-                  />
-                  <div className="flex-1">
-                    <div className="flex items-start justify-between gap-3">
-                      <div>
-                        <div className="text-sm font-semibold text-slate-900">{character.name}</div>
-                        <div className="mt-1 text-xs text-slate-500">
-                          {isAlreadyInPortfolio ? "已加入作品集" : "可加入公開作品集"}
-                        </div>
-                      </div>
-                    </div>
-
-                    {previewUrl ? (
-                      <div className="mt-3 h-36 overflow-hidden rounded border bg-slate-50">
-                        <img src={previewUrl} alt={character.name} className="h-full w-full object-cover" />
-                      </div>
-                    ) : (
-                      <div className="mt-3 rounded border border-dashed p-4 text-sm text-slate-500">此角色目前沒有可用的預覽圖。</div>
-                    )}
-                  </div>
-                </label>
-              );
-            })}
-          </div>
-        )}
-      </section>
-
-      <section>
-        <h2 className="font-semibold mb-4">作品集</h2>
-        {portfolios.length === 0 ? (
-          <div className="text-sm text-slate-500">尚無作品</div>
-        ) : (
-          <div className="grid grid-cols-2 sm:grid-cols-3 gap-4">
-            {portfolios.map((p) => (
-              <div key={p.id} className="border rounded overflow-hidden">
-                <div className="h-40 w-full bg-slate-100 overflow-hidden">
-                  {/* eslint-disable-next-line @next/next/no-img-element */}
-                  <img src={p.image_url} alt={p.title ?? "portfolio"} className="h-full w-full object-cover" />
-                </div>
-                <div className="p-2 flex items-center justify-between">
-                  <div className="text-sm">{p.title}</div>
-                  <button className="text-sm text-red-600" onClick={() => handleDeletePortfolio(p)}>
-                    刪除
+              <div className="flex-1">
+                <FileUploadField
+                  id="artist-profile-avatar-upload"
+                  accept="image/*"
+                  files={avatarFile ? [avatarFile] : []}
+                  onFilesChange={handleAvatarChange}
+                  buttonText="上傳圖片"
+                  emptyText="未選擇任何檔案"
+                />
+                <div className="mt-3 flex flex-wrap gap-2">
+                  <button
+                    type="button"
+                    className="inline-flex items-center gap-2 rounded-full bg-sky-600 px-4 py-2 text-sm font-semibold text-white transition hover:bg-sky-700 disabled:cursor-not-allowed disabled:bg-slate-300"
+                    onClick={uploadAvatar}
+                    disabled={!avatarFile || uploading}
+                  >
+                    <UploadCloud className="h-4 w-4" />
+                    {uploading ? "上傳中..." : "上傳並更新"}
+                  </button>
+                  <button
+                    type="button"
+                    className="rounded-full border border-slate-200 bg-white px-4 py-2 text-sm font-semibold text-slate-700 transition hover:bg-slate-50 disabled:cursor-not-allowed disabled:opacity-50"
+                    onClick={() => setAvatarFile(null)}
+                    disabled={uploading}
+                  >
+                    取消
                   </button>
                 </div>
               </div>
-            ))}
+            </div>
+          </article>
+
+          <article className="space-y-5 rounded-2xl border border-sky-100 bg-white p-5">
+            <div>
+              <label className="mb-2 block text-sm font-semibold text-slate-700">顯示名稱</label>
+              <input
+                value={fullName}
+                onChange={(event) => setFullName(event.target.value)}
+                className="w-full rounded-2xl border border-sky-100 bg-sky-50/40 px-4 py-3 text-sm text-slate-800 outline-none transition focus:border-sky-300 focus:bg-white"
+                placeholder="輸入你的名稱"
+              />
+            </div>
+
+            <div>
+              <label className="mb-2 block text-sm font-semibold text-slate-700">自我介紹</label>
+              <textarea
+                value={bio}
+                onChange={(event) => setBio(event.target.value)}
+                className="w-full rounded-2xl border border-sky-100 bg-sky-50/40 px-4 py-3 text-sm text-slate-800 outline-none transition focus:border-sky-300 focus:bg-white"
+                rows={6}
+              />
+            </div>
+
+            <div>
+              <label className="mb-3 block text-sm font-semibold text-slate-700">接單狀態</label>
+              <div className="grid gap-3 sm:grid-cols-3">
+                {statusOptions.map((option) => {
+                  const selected = status === option.value;
+
+                  return (
+                    <label
+                      key={option.value}
+                      className={[
+                        "cursor-pointer rounded-2xl border p-3 transition",
+                        selected
+                          ? "border-sky-300 bg-sky-50 shadow-sm"
+                          : "border-sky-100 bg-white hover:border-sky-200",
+                      ].join(" ")}
+                    >
+                      <input
+                        type="radio"
+                        name="status"
+                        checked={selected}
+                        onChange={() => setStatus(option.value)}
+                        className="sr-only"
+                      />
+                      <span className={["inline-flex rounded-md px-2.5 py-1 text-xs font-bold", option.chipClassName].join(" ")}>
+                        {option.label}
+                      </span>
+                    </label>
+                  );
+                })}
+              </div>
+            </div>
+
+            <div className="flex justify-end">
+              <button
+                type="button"
+                className="inline-flex items-center gap-2 rounded-full bg-slate-900 px-5 py-2.5 text-sm font-semibold text-white transition hover:bg-slate-700"
+                onClick={saveBioAndStatus}
+              >
+                <Save className="h-4 w-4" />
+                儲存設定
+              </button>
+            </div>
+          </article>
+        </section>
+
+        <section className="mb-6 rounded-2xl border border-sky-100 bg-white p-6 shadow-sm sm:p-8">
+          <div className="mb-4 flex flex-wrap items-center justify-between gap-3">
+            <div>
+              <h2 className="text-xl font-black text-slate-900">作品集上傳</h2>
+              <p className="mt-1 text-sm text-slate-600">上傳新作品到公開作品集，讓客戶更快理解你的風格。</p>
+            </div>
           </div>
-        )}
-      </section>
-    </div>
+
+          <div className="rounded-2xl border border-dashed border-sky-200 bg-sky-50/40 p-4">
+            <FileUploadField
+              id="artist-profile-portfolio-upload"
+              accept="image/*"
+              multiple
+              files={portfolioFiles}
+              onFilesChange={(files) => {
+                void handlePortfolioFiles(files);
+              }}
+              buttonText="上傳圖片"
+              emptyText="未選擇任何檔案"
+            />
+          </div>
+
+          {uploading ? <p className="mt-3 text-sm font-medium text-slate-600">上傳中...</p> : null}
+        </section>
+
+        <section className="mb-6 rounded-2xl border border-sky-100 bg-white p-6 shadow-sm sm:p-8">
+          <div className="mb-4 flex flex-wrap items-center justify-between gap-3">
+            <div>
+              <h2 className="text-xl font-black text-slate-900">平台授權委託作品</h2>
+              <p className="mt-1 text-sm text-slate-600">可快速引用已完稿且客戶授權公開的角色作品，加入你的公開作品集。</p>
+            </div>
+            <button
+              className="rounded-full bg-emerald-600 px-4 py-2 text-sm font-semibold text-white disabled:cursor-not-allowed disabled:bg-slate-300"
+              onClick={() => {
+                void handleImportAuthorizedWorks();
+              }}
+              disabled={isImportingAuthorizedWorks || selectedAuthorizedIds.length === 0}
+            >
+              {isImportingAuthorizedWorks ? "加入中..." : `加入作品集 (${selectedAuthorizedIds.length})`}
+            </button>
+          </div>
+
+          {authorizedCharacters.length === 0 ? (
+            <div className="rounded-2xl border border-dashed border-slate-200 bg-slate-50 p-4 text-sm text-slate-500">目前沒有可引用的授權委託作品。</div>
+          ) : (
+            <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
+              {authorizedCharacters.map((character) => {
+                const previewUrl = getCharacterPortfolioPreview(character);
+                const isSelected = selectedAuthorizedIds.includes(character.id);
+                const isAlreadyInPortfolio = previewUrl ? portfolios.some((item) => item.image_url === previewUrl) : false;
+
+                return (
+                  <label
+                    key={character.id}
+                    className="flex cursor-pointer gap-3 rounded-2xl border border-sky-100 bg-white p-3 shadow-sm"
+                  >
+                    <input
+                      type="checkbox"
+                      checked={isSelected}
+                      disabled={isAlreadyInPortfolio}
+                      onChange={() => handleToggleAuthorizedCharacter(character.id)}
+                      className="mt-1 h-4 w-4"
+                    />
+                    <div className="flex-1">
+                      <div className="text-sm font-semibold text-slate-900">{character.name}</div>
+                      <div className="mt-1 text-xs text-slate-500">{isAlreadyInPortfolio ? "已加入作品集" : "可加入公開作品集"}</div>
+
+                      {previewUrl ? (
+                        <div className="mt-3 h-36 overflow-hidden rounded-xl border border-slate-200 bg-slate-50">
+                          <img src={previewUrl} alt={character.name} className="h-full w-full object-cover" />
+                        </div>
+                      ) : (
+                        <div className="mt-3 rounded-xl border border-dashed border-slate-200 p-4 text-sm text-slate-500">此角色目前沒有可用的預覽圖。</div>
+                      )}
+                    </div>
+                  </label>
+                );
+              })}
+            </div>
+          )}
+        </section>
+
+        <section className="rounded-2xl border border-sky-100 bg-white p-6 shadow-sm sm:p-8">
+          <h2 className="mb-4 text-xl font-black text-slate-900">作品集</h2>
+          {portfolios.length === 0 ? (
+            <div className="rounded-2xl border border-dashed border-slate-200 bg-slate-50 p-6 text-sm text-slate-500">尚無作品</div>
+          ) : (
+            <div className="grid grid-cols-2 gap-4 sm:grid-cols-3">
+              {portfolios.map((portfolioItem) => (
+                <div key={portfolioItem.id} className="overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-sm">
+                  <div className="h-40 w-full overflow-hidden bg-slate-100">
+                    {/* eslint-disable-next-line @next/next/no-img-element */}
+                    <img src={portfolioItem.image_url} alt={portfolioItem.title ?? "portfolio"} className="h-full w-full object-cover" />
+                  </div>
+                  <div className="flex items-center justify-between gap-2 p-3">
+                    <div className="truncate text-sm font-medium text-slate-700">{portfolioItem.title}</div>
+                    <button
+                      type="button"
+                      className="text-sm font-semibold text-rose-600 transition hover:text-rose-700"
+                      onClick={() => handleDeletePortfolio(portfolioItem)}
+                    >
+                      刪除
+                    </button>
+                  </div>
+                </div>
+              ))}
+            </div>
+          )}
+        </section>
+      </div>
+    </main>
   );
 }

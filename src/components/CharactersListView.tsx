@@ -72,7 +72,6 @@ export default function CharactersListView() {
   const router = useRouter();
   const [loading, setLoading] = useState(true);
   const [activeTab, setActiveTab] = useState<CharacterTab>("completed");
-  const [statusMessage, setStatusMessage] = useState("讀取角色資料中...");
   const [characters, setCharacters] = useState<CharacterListItem[]>([]);
 
   useEffect(() => {
@@ -83,7 +82,7 @@ export default function CharactersListView() {
 
       if (!supabase) {
         if (!cancelled) {
-          setStatusMessage("Supabase 尚未設定，無法讀取角色資料。");
+          setCharacters([]);
           setLoading(false);
         }
         return;
@@ -114,14 +113,14 @@ export default function CharactersListView() {
       }
 
       if (error) {
-        setStatusMessage(`讀取角色失敗：${error.message}`);
+        console.error("讀取角色失敗：", error.message);
+        setCharacters([]);
         setLoading(false);
         return;
       }
 
       const list = (data ?? []) as CharacterListItem[];
       setCharacters(list);
-      setStatusMessage(`已載入 ${list.length} 筆角色資料`);
       setLoading(false);
     };
 
@@ -173,11 +172,6 @@ export default function CharactersListView() {
           <p className="mt-3 max-w-3xl text-slate-600">
             集中管理你已建立的角色 DNA 與繪師綁定資料，點擊卡片可查看完整角色詳情。
           </p>
-        </section>
-
-        <section className="mb-6 flex items-center gap-3 rounded-2xl border border-sky-100 bg-white px-4 py-3 shadow-sm">
-          <Loader2 className="h-4 w-4 text-sky-600" />
-          <p className="text-sm text-slate-600">{statusMessage}</p>
         </section>
 
         <section className="mb-6 rounded-2xl border border-sky-100 bg-white p-2 shadow-sm">
