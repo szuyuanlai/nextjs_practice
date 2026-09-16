@@ -422,7 +422,7 @@ export default function ArtistProfilePage() {
           返回首頁
         </Link>
 
-        <section className="order-2 mb-6 rounded-2xl border border-sky-100 bg-white p-6 shadow-sm sm:p-8">
+        <section className="order-1 mb-6 rounded-2xl border border-sky-100 bg-white p-6 shadow-sm sm:p-8">
           <p className="mb-2 inline-flex items-center gap-2 rounded-full border border-sky-200 bg-sky-50 px-3 py-1 text-[11px] font-semibold uppercase tracking-[0.2em] text-sky-700">
             <Sparkles className="h-3.5 w-3.5" />
             Artist Profile Settings
@@ -431,7 +431,7 @@ export default function ArtistProfilePage() {
           <p className="mt-2 text-sm text-slate-600">更新你的大頭貼、接單狀態與作品集，維持一致的品牌視覺質感。</p>
         </section>
 
-        <section className="mb-6 grid gap-5 rounded-2xl border border-sky-100 bg-white p-6 shadow-sm lg:grid-cols-[0.95fr_1.05fr] sm:p-8">
+        <section className="order-2 mb-6 grid gap-5 rounded-2xl border border-sky-100 bg-white p-6 shadow-sm lg:grid-cols-[0.95fr_1.05fr] sm:p-8">
           <article className="space-y-8 rounded-2xl border border-sky-100 bg-sky-50/40 p-5">
             <div>
               <h2 className="mb-4 text-lg font-black text-slate-900">封面背景圖</h2>
@@ -588,7 +588,7 @@ export default function ArtistProfilePage() {
           </article>
         </section>
 
-        <section className="order-1 mb-6 rounded-2xl border border-sky-100 bg-white p-6 shadow-sm sm:p-8">
+        <section className="order-4 mb-6 rounded-2xl border border-sky-100 bg-white p-6 shadow-sm sm:p-8">
           <div className="mb-4 flex flex-wrap items-center justify-between gap-3">
             <div>
               <h2 className="text-xl font-black text-slate-900">作品集上傳</h2>
@@ -613,7 +613,7 @@ export default function ArtistProfilePage() {
           {uploading ? <p className="mt-3 text-sm font-medium text-slate-600">上傳中...</p> : null}
         </section>
 
-        <section className="mb-6 rounded-2xl border border-sky-100 bg-white p-6 shadow-sm sm:p-8">
+        <section className="order-3 mb-6 rounded-2xl border border-sky-100 bg-white p-6 shadow-sm sm:p-8">
           <div className="mb-4 flex flex-wrap items-center justify-between gap-3">
             <div>
               <h2 className="text-xl font-black text-slate-900">平台授權委託作品</h2>
@@ -670,7 +670,7 @@ export default function ArtistProfilePage() {
           )}
         </section>
 
-        <section className="order-3 rounded-2xl border border-sky-100 bg-white p-6 shadow-sm sm:p-8">
+        <section className="order-5 rounded-2xl border border-sky-100 bg-white p-6 shadow-sm sm:p-8">
           <h2 className="mb-4 text-xl font-black text-slate-900">作品集</h2>
           {portfolios.length === 0 ? (
             <div className="rounded-2xl border border-dashed border-slate-200 bg-slate-50 p-6 text-sm text-slate-500">尚無作品</div>

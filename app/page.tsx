@@ -1,6 +1,6 @@
 import { Navbar } from "@/src/components/Navbar";
 import { ArtistMarquee } from "@/src/components/ArtistMarquee";
-import { Palette, Wand2 } from "lucide-react";
+import { ArrowRight, Palette, Wand2 } from "lucide-react";
 
 const processSteps = [
   { title: "1. 需求確認", text: "填寫角色風格、配色與參考方向，快速對齊你想要的世界觀。" },
@@ -27,15 +27,14 @@ export default function HomePage() {
                 <span className="bg-gradient-to-r from-sky-500 via-cyan-500 to-blue-600 bg-clip-text text-transparent">二次元角色</span>
               </h1>
 
-              
+
             </div>
 
             <div className="flex flex-wrap gap-3">
-              <a
-                href="/characters/create"
-                className="inline-flex items-center gap-2 rounded-full bg-gradient-to-r from-sky-500 to-blue-600 px-5 py-3 font-semibold text-white shadow-lg shadow-sky-500/25 transition hover:translate-y-[-1px]"
+              <a href="/characters/create" className="inline-flex items-center gap-2 rounded-full bg-gradient-to-r from-sky-500 to-blue-600 px-5 py-3 font-semibold text-white shadow-lg shadow-sky-500/25 transition hover:translate-y-[-1px]"
               >
                 創建角色
+                <ArrowRight className="h-4 w-4" />
               </a>
               <a
                 href="/artists"

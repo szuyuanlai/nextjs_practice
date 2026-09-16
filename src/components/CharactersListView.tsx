@@ -170,7 +170,7 @@ export default function CharactersListView() {
           </p>
           <h1 className="text-3xl font-black tracking-tight text-slate-900">我的角色資產庫</h1>
           <p className="mt-3 max-w-3xl text-slate-600">
-            集中管理你已建立的角色 DNA 與繪師綁定資料，點擊卡片可查看完整角色詳情。
+            集中管理你已建立的角色設定與繪師綁定資料，點擊卡片可查看完整角色詳情。
           </p>
         </section>
 

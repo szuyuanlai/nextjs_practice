@@ -500,7 +500,7 @@ export default function CharacterDNAForm() {
         <div>
           <p className="mb-2 inline-flex items-center gap-2 rounded-full border border-sky-200 bg-sky-50 px-3 py-1 text-[11px] font-semibold uppercase tracking-[0.2em] text-sky-700">
             <Sparkles className="h-3.5 w-3.5" />
-            Character DNA
+            Character Profile
           </p>
           <h2 className="text-3xl font-black tracking-tight text-slate-900">Step {step} / 2 ・ {stepTitle}</h2>
         </div>
