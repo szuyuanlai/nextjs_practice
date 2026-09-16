@@ -86,8 +86,7 @@ export default function CharacterDNAForm() {
   const stepTitle = useMemo(() => {
     if (flowStep === "artist") return "選擇執筆繪師";
     if (step === 1) return "基本身份與性格";
-    if (step === 2) return "外觀與外貌細節";
-    return "參考圖與靈感上傳";
+    return "外觀細節與參考素材";
   }, [flowStep, step]);
 
   const setField = <K extends keyof FormState>(key: K, value: FormState[K]) => {
@@ -248,7 +247,7 @@ export default function CharacterDNAForm() {
       showToast("error", "請先填寫角色名稱。");
       return;
     }
-    setStep((current) => Math.min(3, current + 1));
+    setStep((current) => Math.min(2, current + 1));
   };
 
   const goBack = () => {
@@ -394,12 +393,11 @@ export default function CharacterDNAForm() {
             <Sparkles className="h-3.5 w-3.5" />
             Character DNA
           </p>
-          <h2 className="text-3xl font-black tracking-tight text-slate-900">建立你的角色設定檔</h2>
-          <p className="mt-2 text-sm text-slate-600">Step {step} / 3 ・ {stepTitle}</p>
+          <h2 className="text-3xl font-black tracking-tight text-slate-900">Step {step} / 2 ・ {stepTitle}</h2>
         </div>
 
         <div className="flex gap-2">
-          {[1, 2, 3].map((item) => (
+          {[1, 2].map((item) => (
             <div
               key={item}
               className={[
@@ -646,11 +644,7 @@ export default function CharacterDNAForm() {
               className="rounded-2xl border border-sky-100 bg-sky-50/60 px-4 py-3 text-slate-800 placeholder:text-slate-400 focus:border-sky-400 focus:outline-none"
             />
           </label>
-        </div>
-      ) : null}
 
-      {flowStep === "form" && step === 3 ? (
-        <div className="grid gap-6">
           <label className="grid gap-2 text-sm font-medium text-slate-700">
             <span>靈感 / 參考圖片上傳（可多選）</span>
             <div className="rounded-2xl border border-dashed border-sky-200 bg-sky-50/60 p-4">
@@ -776,13 +770,13 @@ export default function CharacterDNAForm() {
             上一步
           </button>
 
-          {step < 3 ? (
+          {step < 2 ? (
             <button
               type="button"
               onClick={goNext}
               className="inline-flex items-center gap-2 rounded-2xl bg-gradient-to-r from-sky-500 to-blue-600 px-5 py-2.5 text-sm font-semibold text-white shadow-lg shadow-sky-200 transition hover:translate-y-[-1px]"
             >
-              下一步
+              下一步：外觀與素材 ➔
               <ChevronRight className="h-4 w-4" />
             </button>
           ) : (
@@ -792,7 +786,7 @@ export default function CharacterDNAForm() {
               disabled={isSubmitting}
               className="inline-flex items-center gap-2 rounded-2xl bg-gradient-to-r from-emerald-500 to-cyan-600 px-5 py-2.5 text-sm font-semibold text-white shadow-lg shadow-emerald-100 transition hover:translate-y-[-1px] disabled:cursor-not-allowed disabled:opacity-70"
             >
-              下一步：選擇執筆繪師 ➔
+              完成並建立角色 DNA
             </button>
           )}
         </div>

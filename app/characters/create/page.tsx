@@ -70,7 +70,7 @@ export default function CreateCharacterPage() {
           </p>
           <h1 className="text-3xl font-black tracking-tight text-slate-900">創建角色 DNA 設定檔</h1>
           <p className="mt-3 max-w-3xl text-slate-600">
-            透過三個步驟完成角色身份、外觀與參考素材設定，送出後會自動建立角色資料。
+            透過兩個步驟完成角色身份、外觀與參考素材設定，送出後會自動建立角色資料。
           </p>
         </section>
 
