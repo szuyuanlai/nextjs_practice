@@ -101,8 +101,8 @@ type Toast = {
   message: string;
 };
 
-const MERCH_DELIVERY_BUCKETS = ["merch-deliveries", "completed-assets", "artist-assets"] as const;
-const CHARACTER_DELIVERY_BUCKETS = ["deliveries", "completed-assets", "character-references", "artist-assets"] as const;
+const MERCH_DELIVERY_BUCKETS = ["artist-assets", "order-uploads"] as const;
+const CHARACTER_DELIVERY_BUCKETS = ["artist-assets", "order-uploads"] as const;
 
 function parseStringArray(value: unknown) {
   if (!Array.isArray(value)) {
@@ -114,6 +114,10 @@ function parseStringArray(value: unknown) {
 
 function uniqueStrings(values: string[]) {
   return Array.from(new Set(values));
+}
+
+function stripUndefined<T extends Record<string, unknown>>(input: T) {
+  return Object.fromEntries(Object.entries(input).filter(([, value]) => value !== undefined)) as T;
 }
 
 function formatDateTime(iso: string) {
@@ -492,21 +496,25 @@ export default function ArtistOrdersListView() {
       const sheetPath = `${user.id}/${characterId}/character-sheet-${Date.now()}-${sheetFile.name}`;
       const iconPath = `${user.id}/${characterId}/character-icon-${Date.now()}-${iconFile.name}`;
 
-      const { publicUrl: characterSheetUrl } = await uploadFileToBucket(
+      const characterSheetUpload = await uploadFileToBucket(
         supabase,
         CHARACTER_DELIVERY_BUCKETS,
         sheetFile,
         sheetPath,
       );
-      const { publicUrl: characterIconUrl } = await uploadFileToBucket(
+      const characterIconUpload = await uploadFileToBucket(
         supabase,
         CHARACTER_DELIVERY_BUCKETS,
         iconFile,
         iconPath,
       );
+      const characterSheetUrl = characterSheetUpload.publicUrl;
+      const characterIconUrl = characterIconUpload.publicUrl;
 
       console.log("[ArtistOrders] upload success", {
         characterId,
+        characterSheetUpload,
+        characterIconUpload,
         characterSheetUrl,
         characterIconUrl,
       });
@@ -522,15 +530,22 @@ export default function ArtistOrdersListView() {
         completed_by_artist_id: user.id,
       };
 
+      const characterUpdatePayload = stripUndefined({
+        status: "completed",
+        character_icon_url: characterIconUrl,
+        character_sheet_url: characterSheetUrl,
+        image_urls: nextImageUrls,
+        appearance_details: nextAppearance,
+      });
+
+      console.log("[ArtistOrders] characters update payload", {
+        characterId,
+        payload: characterUpdatePayload,
+      });
+
       const { data: characterUpdateRows, error: characterUpdateError } = await supabase
         .from("characters")
-        .update({
-          status: "completed",
-          character_icon_url: characterIconUrl,
-          character_sheet_url: characterSheetUrl,
-          image_urls: nextImageUrls,
-          appearance_details: nextAppearance,
-        })
+        .update(characterUpdatePayload)
         .eq("id", characterId)
         .eq("artist_id", user.id)
         .select("id,status,character_sheet_url,character_icon_url");
@@ -599,20 +614,34 @@ export default function ArtistOrdersListView() {
     try {
       const file = files[0];
       const path = `${user.id}/${order.id}/delivery-${Date.now()}-${file.name}`;
-      const { publicUrl } = await uploadFileToBucket(supabase, MERCH_DELIVERY_BUCKETS, file, path);
+      const uploadResult = await uploadFileToBucket(supabase, MERCH_DELIVERY_BUCKETS, file, path);
+      const publicUrl = uploadResult.publicUrl;
 
-      const { error } = await supabase
+      console.log("[ArtistOrders] merch upload success", {
+        orderId: order.id,
+        uploadResult,
+      });
+
+      const updatePayload = stripUndefined({
+        delivery_file_url: publicUrl,
+        status: "completed",
+      });
+      const { data, error } = await supabase
         .from("orders")
-        .update({
-          delivery_file_url: publicUrl,
-          status: "completed",
-        })
+        .update(updatePayload)
         .eq("id", order.id)
-        .eq("artist_id", user.id);
+        .eq("artist_id", user.id)
+        .select("id,status,delivery_file_url");
 
       if (error) {
         throw error;
       }
+
+      console.log("[ArtistOrders] merch update success", {
+        orderId: order.id,
+        payload: updatePayload,
+        rows: data,
+      });
 
       setToast({ kind: "success", message: "交付成功，訂單已標記為已完成。" });
       setDeliveryFilesByOrderId((current) => ({

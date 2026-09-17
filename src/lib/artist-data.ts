@@ -83,18 +83,48 @@ export async function fetchArtistPortfolios(supabase: any, artistId: string) {
 }
 
 export async function uploadFileToBucket(supabase: any, bucketNames: readonly string[], file: File, path: string) {
+  const buildSafeObjectPath = () => {
+    const fileExt = file.name.split(".").pop()?.toLowerCase() || "png";
+    const fileName = `${Date.now()}-${Math.random().toString(36).substring(2, 7)}.${fileExt}`;
+    const trimmed = path.replace(/^\/+/, "").replace(/\/+$/, "");
+    const segments = trimmed.split("/").filter((segment) => segment.length > 0);
+    const dir = segments.length > 1 ? segments.slice(0, -1).join("/") : "";
+    return dir ? `${dir}/${fileName}` : fileName;
+  };
+
+  const objectPath = buildSafeObjectPath();
   const uploadErrors: Array<{ bucketName: string; message: string }> = [];
 
   for (const bucketName of bucketNames) {
-    const { error } = await supabase.storage.from(bucketName).upload(path, file, { upsert: true });
+    console.log("[uploadFileToBucket] upload start", {
+      bucketName,
+      originalPath: path,
+      objectPath,
+      fileName: file.name,
+      fileType: file.type,
+      fileSize: file.size,
+    });
+
+    const { data, error } = await supabase.storage.from(bucketName).upload(objectPath, file, {
+      contentType: file.type || "application/octet-stream",
+      upsert: true,
+    });
+
     if (!error) {
-      const { data: publicData } = supabase.storage.from(bucketName).getPublicUrl(path);
-      return { bucketName, publicUrl: publicData.publicUrl };
+      const { data: publicData } = supabase.storage.from(bucketName).getPublicUrl(objectPath);
+      console.log("[uploadFileToBucket] upload success", {
+        bucketName,
+        objectPath,
+        uploadData: data,
+        publicUrl: publicData.publicUrl,
+      });
+      return { bucketName, publicUrl: publicData.publicUrl, objectPath, uploadData: data };
     }
 
     console.error("Storage upload failed", {
       bucketName,
       path,
+      objectPath,
       error,
       message: error.message,
       details: (error as { details?: string }).details,
