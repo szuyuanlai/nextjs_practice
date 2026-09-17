@@ -218,6 +218,17 @@ export default function ShopPage() {
     [characters, selectedCharacterId],
   );
 
+  useEffect(() => {
+    if (!selectedCharacterId) {
+      return;
+    }
+
+    const activeCharacter = characters.find((item) => item.id === selectedCharacterId) ?? null;
+    if (activeCharacter?.artist_id) {
+      setSelectedArtistId(activeCharacter.artist_id);
+    }
+  }, [characters, selectedCharacterId]);
+
   const selectedArtist = useMemo(
     () => artists.find((item) => item.id === selectedArtistId) ?? null,
     [artists, selectedArtistId],
@@ -267,15 +278,16 @@ export default function ShopPage() {
     try {
       const normalizedUserId = normalizeNullableId(userId);
       const normalizedCharacterId = normalizeNullableId(selectedCharacterId);
-      const normalizedArtistId = normalizeNullableId(selectedArtistId);
+      const resolvedArtistId = normalizeNullableId(selectedCharacter?.artist_id ?? selectedArtistId);
 
-      if (!normalizedUserId || !normalizedCharacterId || !normalizedArtistId) {
+      if (!normalizedUserId || !normalizedCharacterId || !resolvedArtistId) {
         throw new Error("訂單資料不完整：使用者、角色或繪師識別碼無效。");
       }
 
       const payload = {
         user_id: normalizedUserId,
         character_id: normalizedCharacterId,
+        artist_id: resolvedArtistId,
         merch_type: selectedMerch,
         pose: requirements.pose.trim(),
         expression: requirements.expression.trim(),

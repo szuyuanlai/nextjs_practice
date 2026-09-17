@@ -118,6 +118,39 @@ function uniqueStrings(values: string[]) {
   return Array.from(new Set(values));
 }
 
+function parseDeliveryUrls(value: unknown): string[] {
+  if (!value) {
+    return [];
+  }
+
+  if (Array.isArray(value)) {
+    return value.filter((item): item is string => typeof item === "string" && item.trim().length > 0);
+  }
+
+  if (typeof value === "string") {
+    const trimmed = value.trim();
+    if (!trimmed) {
+      return [];
+    }
+
+    try {
+      const parsed = JSON.parse(trimmed);
+      if (Array.isArray(parsed)) {
+        return parsed.filter((item): item is string => typeof item === "string" && item.trim().length > 0);
+      }
+    } catch {
+      // fallback to comma/newline split
+    }
+
+    return trimmed
+      .split(/[\r\n,]+/)
+      .map((item) => item.trim())
+      .filter(Boolean);
+  }
+
+  return [];
+}
+
 function stripUndefined<T extends Record<string, unknown>>(input: T) {
   return Object.fromEntries(Object.entries(input).filter(([, value]) => value !== undefined)) as T;
 }
@@ -627,8 +660,8 @@ export default function ArtistOrdersListView() {
 
   const handleUploadMerchDelivery = async (order: EnrichedMerchOrder) => {
     const files = deliveryFilesByOrderId[order.id] ?? [];
-    if (!files[0]) {
-      setToast({ kind: "error", message: "請先選擇交付檔案。" });
+    if (!files.length) {
+      setToast({ kind: "error", message: "請先選擇需要交付的圖片或檔案。" });
       return;
     }
 
@@ -652,18 +685,35 @@ export default function ArtistOrdersListView() {
     setUploadingOrderId(order.id);
 
     try {
-      const file = files[0];
-      const path = `${user.id}/${order.id}/delivery-${Date.now()}-${file.name}`;
-      const uploadResult = await uploadFileToBucket(supabase, MERCH_DELIVERY_BUCKETS, file, path);
-      const publicUrl = uploadResult.publicUrl;
+      const uploadedUrls = await Promise.all(
+        files.map(async (file) => {
+          const path = `${user.id}/${order.id}/delivery-${Date.now()}-${Math.random().toString(36).slice(2, 8)}-${file.name}`;
+          const uploadResult = await uploadFileToBucket(supabase, MERCH_DELIVERY_BUCKETS, file, path);
+          return uploadResult.publicUrl;
+        }),
+      );
 
-      console.log("[ArtistOrders] merch upload success", {
-        orderId: order.id,
-        uploadResult,
-      });
+      const existingUrls = Array.isArray(order.delivery_file_url)
+        ? order.delivery_file_url
+        : typeof order.delivery_file_url === "string"
+          ? (() => {
+              try {
+                const parsed = JSON.parse(order.delivery_file_url);
+                return Array.isArray(parsed) ? parsed.filter((item): item is string => typeof item === "string") : [];
+              } catch {
+                return order.delivery_file_url
+                  .split(/[\r\n,]+/)
+                  .map((item) => item.trim())
+                  .filter(Boolean);
+              }
+            })()
+          : [];
+
+      const combinedUrls = Array.from(new Set([...existingUrls, ...uploadedUrls]));
+      const serializedDeliveryUrl = combinedUrls.length > 1 ? JSON.stringify(combinedUrls) : combinedUrls[0] ?? null;
 
       const updatePayload = stripUndefined({
-        delivery_file_url: publicUrl,
+        delivery_file_url: serializedDeliveryUrl,
         status: "completed",
       });
       const { data, error } = await supabase
@@ -683,7 +733,7 @@ export default function ArtistOrdersListView() {
         rows: data,
       });
 
-      setToast({ kind: "success", message: "交付成功，訂單已標記為已完成。" });
+      setToast({ kind: "success", message: "交付成功！訂單已更新為已完成。" });
       setDeliveryFilesByOrderId((current) => ({
         ...current,
         [order.id]: [],
@@ -981,16 +1031,32 @@ export default function ArtistOrdersListView() {
                           <p className="mt-1 font-semibold text-slate-900">{formatDateTime(order.merchOrder.created_at)}</p>
                         </div>
 
-                        {(order.merchOrder.status ?? "").toLowerCase() === "completed" && order.merchOrder.delivery_file_url ? (
-                          <a
-                            href={order.merchOrder.delivery_file_url}
-                            target="_blank"
-                            rel="noreferrer"
-                            className="inline-flex rounded-full border border-sky-200 bg-white px-3 py-2 text-xs font-semibold text-sky-700"
-                          >
-                            下載 / 預覽交付檔案
-                          </a>
-                        ) : (
+                        {(order.merchOrder.status ?? "").toLowerCase() === "completed" ? (() => {
+                          const deliveryUrls = parseDeliveryUrls(order.merchOrder.delivery_file_url);
+
+                          if (!deliveryUrls.length) return null;
+
+                          return (
+                            <div className="space-y-3">
+                              <p className="text-xs uppercase tracking-[0.2em] text-slate-500">已交付圖片</p>
+                              <div className="grid grid-cols-2 gap-3">
+                                {deliveryUrls.slice(0, 4).map((url: string, index: number) => (
+                                  <a key={`${order.merchOrder.id}-${index}`} href={url} target="_blank" rel="noreferrer" className="overflow-hidden rounded-2xl border border-sky-200 bg-white">
+                                    <img src={url} alt={`交付成果 ${index + 1}`} className="h-24 w-full object-cover" />
+                                  </a>
+                                ))}
+                              </div>
+                              <a
+                                href={deliveryUrls[0]}
+                                target="_blank"
+                                rel="noreferrer"
+                                className="inline-flex rounded-full border border-sky-200 bg-white px-3 py-2 text-xs font-semibold text-sky-700"
+                              >
+                                下載 / 預覽交付檔案
+                              </a>
+                            </div>
+                          );
+                        })() : (
                           <div className="rounded-2xl border border-amber-200 bg-amber-50 p-3">
                             <div className="mb-2 flex items-center gap-2 text-xs font-semibold text-amber-700">
                               <UploadCloud className="h-4 w-4" />
@@ -1004,6 +1070,7 @@ export default function ArtistOrdersListView() {
                               buttonText="選擇交付檔案"
                               emptyText="尚未選擇任何檔案"
                               className="text-slate-700"
+                              multiple={true}
                             />
                             <button
                               type="button"

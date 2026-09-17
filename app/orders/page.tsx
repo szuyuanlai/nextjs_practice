@@ -107,6 +107,35 @@ function formatDateTime(iso: string) {
   return date.toLocaleString("zh-TW");
 }
 
+function parseDeliveryUrls(value: unknown): string[] {
+  if (!value) return [];
+
+  if (Array.isArray(value)) {
+    return value.filter((item): item is string => typeof item === "string" && item.trim().length > 0);
+  }
+
+  if (typeof value === "string") {
+    const trimmed = value.trim();
+    if (!trimmed) return [];
+
+    try {
+      const parsed = JSON.parse(trimmed);
+      if (Array.isArray(parsed)) {
+        return parsed.filter((item): item is string => typeof item === "string" && item.trim().length > 0);
+      }
+    } catch {
+      // ignore malformed JSON and fall back to split values below
+    }
+
+    return trimmed
+      .split(/[\r\n,]+/)
+      .map((item) => item.trim())
+      .filter(Boolean);
+  }
+
+  return [];
+}
+
 function artistName(artist: ArtistProfile | null) {
   if (!artist) return "尚未指派";
   return artist.display_name?.trim() || artist.full_name?.trim() || `繪師 #${artist.id.slice(0, 6)}`;
@@ -346,14 +375,29 @@ export default function OrdersPage() {
               const statusConfig = statusToLabel(card.status);
 
               return (
-                <article key={`${card.orderKind}-${card.id}`} className="rounded-[28px] border border-sky-100 bg-white p-6 shadow-sm">
+                <article
+                  key={`${card.orderKind}-${card.id}`}
+                  className={[
+                    "rounded-[28px] border bg-white p-6 shadow-sm",
+                    card.orderKind === "character"
+                      ? "border-sky-200 bg-sky-50/20"
+                      : "border-purple-200 bg-purple-50/20",
+                  ].join(" ")}
+                >
                   <div className="flex flex-col gap-4 border-b border-sky-100 pb-4 md:flex-row md:items-center md:justify-between">
                     <div>
                       <p className="text-xs uppercase tracking-[0.2em] text-slate-500">訂單編號</p>
                       <h2 className="mt-2 text-xl font-black text-slate-900">#{card.id.slice(0, 8)}</h2>
-                      <p className="mt-2 text-xs font-semibold uppercase tracking-[0.2em] text-sky-700">
-                        {card.orderKind === "character" ? "角色委託" : "周邊委託"}
-                      </p>
+                      <span
+                        className={[
+                          "mt-2 inline-flex items-center rounded-full border px-2.5 py-1 text-[10px] font-bold uppercase tracking-[0.2em]",
+                          card.orderKind === "character"
+                            ? "border-sky-300 bg-sky-100 text-sky-700"
+                            : "border-purple-300 bg-purple-100 text-purple-700",
+                        ].join(" ")}
+                      >
+                        {card.orderKind === "character" ? "角色創建訂單" : "周邊訂製訂單"}
+                      </span>
                     </div>
 
                     <span className={`inline-flex items-center rounded-full border px-3 py-1.5 text-xs font-semibold ${statusConfig.color}`}>
@@ -453,19 +497,37 @@ export default function OrdersPage() {
                           <p className="text-xs uppercase tracking-[0.2em] text-slate-500">建立時間</p>
                           <p className="mt-2 font-semibold text-slate-800">{formatDateTime(card.createdAt)}</p>
                         </div>
-                        {(card.status ?? "").toLowerCase() === "completed" && card.merchOrder.delivery_file_url ? (
-                          <div>
-                            <p className="text-xs uppercase tracking-[0.2em] text-slate-500">成品交付檔案</p>
-                            <a
-                              href={card.merchOrder.delivery_file_url}
-                              target="_blank"
-                              rel="noreferrer"
-                              className="mt-2 inline-flex rounded-full border border-sky-200 bg-white px-3 py-2 text-sm font-medium text-sky-700"
-                            >
-                              下載 / 預覽交付檔案
-                            </a>
-                          </div>
-                        ) : null}
+                        {(card.status ?? "").toLowerCase() === "completed" ? (() => {
+                          const deliveryUrls = parseDeliveryUrls(card.merchOrder.delivery_file_url);
+                          if (!deliveryUrls.length) return null;
+
+                          return (
+                            <div>
+                              <p className="text-xs uppercase tracking-[0.2em] text-slate-500">成品交付檔案</p>
+                              <div className="mt-3 grid grid-cols-2 gap-3">
+                                {deliveryUrls.slice(0, 4).map((url, index) => (
+                                  <a
+                                    key={`${card.merchOrder.id}-${index}`}
+                                    href={url}
+                                    target="_blank"
+                                    rel="noreferrer"
+                                    className="overflow-hidden rounded-2xl border border-sky-200 bg-white"
+                                  >
+                                    <img src={url} alt={`交付成果 ${index + 1}`} className="h-24 w-full object-cover" />
+                                  </a>
+                                ))}
+                              </div>
+                              <a
+                                href={deliveryUrls[0]}
+                                target="_blank"
+                                rel="noreferrer"
+                                className="mt-3 inline-flex rounded-full border border-sky-200 bg-white px-3 py-2 text-sm font-medium text-sky-700"
+                              >
+                                下載 / 預覽交付檔案
+                              </a>
+                            </div>
+                          );
+                        })() : null}
                       </div>
                     </div>
                   )}
