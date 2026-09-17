@@ -201,7 +201,7 @@ export default function OrdersPage() {
         orderKind: "merch",
         id: merchOrder.id,
         createdAt: merchOrder.created_at,
-        status: merchOrder.status,
+        status: merchOrder.status ?? null,
         artist: merchOrder.artist_id ? artistMap.get(merchOrder.artist_id) ?? null : null,
         character: merchOrder.character_id ? characterBasicMap.get(merchOrder.character_id) ?? null : null,
         merchOrder,
