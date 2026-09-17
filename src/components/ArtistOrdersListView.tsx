@@ -58,6 +58,7 @@ type MerchandiseOrderRow = {
   delivery_file_url?: string | null;
   status?: string | null;
   created_at: string;
+  characters?: CharacterOrderRow[] | null;
 };
 
 type ProfileRow = {
@@ -258,7 +259,20 @@ export default function ArtistOrdersListView() {
           .order("created_at", { ascending: false }),
         supabase
           .from("orders")
-          .select("id,user_id,client_id,artist_id,character_id,merch_type,requirements,shipping_address,delivery_file_url,status,created_at")
+          .select(`
+            id,
+            user_id,
+            client_id,
+            artist_id,
+            character_id,
+            merch_type,
+            requirements,
+            shipping_address,
+            delivery_file_url,
+            status,
+            created_at,
+            characters:characters!orders_character_id_fkey(*)
+          `)
           .eq("artist_id", user.id)
           .not("merch_type", "is", null)
           .order("created_at", { ascending: false }),
@@ -306,7 +320,12 @@ export default function ArtistOrdersListView() {
         const clientId = row.user_id || row.client_id || "";
         const client = clientId ? profileMap.get(clientId) : null;
         const displayName = client?.display_name?.trim() || client?.full_name?.trim() || `委託人 #${clientId.slice(0, 6)}`;
-        const boundCharacter = row.character_id ? characterMap.get(row.character_id) : null;
+        const boundCharacter =
+          Array.isArray(row.characters) && row.characters.length > 0
+            ? row.characters[0]
+            : row.character_id
+              ? characterMap.get(row.character_id) ?? null
+              : null;
 
         return {
           ...row,
@@ -351,7 +370,20 @@ export default function ArtistOrdersListView() {
         .order("created_at", { ascending: false }),
       supabase
         .from("orders")
-        .select("id,user_id,client_id,artist_id,character_id,merch_type,requirements,shipping_address,delivery_file_url,status,created_at")
+        .select(`
+          id,
+          user_id,
+          client_id,
+          artist_id,
+          character_id,
+          merch_type,
+          requirements,
+          shipping_address,
+          delivery_file_url,
+          status,
+          created_at,
+          characters:characters!orders_character_id_fkey(*)
+        `)
         .eq("artist_id", user.id)
         .not("merch_type", "is", null)
         .order("created_at", { ascending: false }),
@@ -385,7 +417,12 @@ export default function ArtistOrdersListView() {
       const clientId = row.user_id || row.client_id || "";
       const client = clientId ? profileMap.get(clientId) : null;
       const displayName = client?.display_name?.trim() || client?.full_name?.trim() || `委託人 #${clientId.slice(0, 6)}`;
-      const boundCharacter = row.character_id ? characterMap.get(row.character_id) : null;
+      const boundCharacter =
+        Array.isArray(row.characters) && row.characters.length > 0
+          ? row.characters[0]
+          : row.character_id
+            ? characterMap.get(row.character_id) ?? null
+            : null;
 
       return {
         ...row,
@@ -777,8 +814,13 @@ export default function ArtistOrdersListView() {
                     <div>
                       <p className="text-xs uppercase tracking-[0.2em] text-slate-500">訂單編號</p>
                       <p className="mt-2 text-lg font-black text-slate-900">#{order.id.slice(0, 8)}</p>
-                      <p className="mt-2 text-xs font-semibold uppercase tracking-[0.2em] text-sky-700">
-                        {order.kind === "character" ? "角色委託" : "周邊委託"}
+                      <p className={[
+                        "mt-2 inline-flex items-center rounded-md px-2.5 py-1 text-[10px] font-bold uppercase tracking-[0.2em] text-white",
+                        order.kind === "character"
+                          ? "bg-indigo-500"
+                          : "bg-amber-500",
+                      ].join(" ")}>
+                        {order.kind === "character" ? "角色創建" : "周邊製作"}
                       </p>
                     </div>
                     <span className={`inline-flex rounded-full border px-3 py-1 text-xs font-semibold ${statusConfig.className}`}>

@@ -277,12 +277,11 @@ export default function ShopPage() {
         user_id: normalizedUserId,
         character_id: normalizedCharacterId,
         merch_type: selectedMerch,
-        requirements: {
-          pose: requirements.pose.trim(),
-          expression: requirements.expression.trim(),
-          scene: requirements.scene.trim(),
-          background_scene: requirements.scene.trim(),
-        },
+        pose: requirements.pose.trim(),
+        expression: requirements.expression.trim(),
+        background_scene: requirements.scene.trim(),
+        recipient_name: shipping.name.trim(),
+        phone: shipping.phone.trim(),
         shipping_address: {
           name: shipping.name.trim(),
           recipient_name: shipping.name.trim(),
@@ -290,6 +289,7 @@ export default function ShopPage() {
           address: shipping.address.trim(),
         },
         status: "pending",
+        created_at: new Date().toISOString(),
       };
 
       const { data, error } = await supabase.from("orders").insert([payload]).select().single();

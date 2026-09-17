@@ -231,13 +231,18 @@ function NewOrderPageContent() {
         user_id: normalizedUserId,
         character_id: characterId,
         merch_type: merchType.trim() || "周邊商品",
-        requirements: {
-          summary: requirements.trim() || "未填寫需求",
-        },
+        pose: requirements.trim() || "未填寫姿勢需求",
+        expression: "未填寫表情需求",
+        background_scene: "未填寫背景場景需求",
+        recipient_name: "未填寫收件人姓名",
+        phone: "未填寫聯絡電話",
         shipping_address: {
           address: shippingAddress.trim() || "未填寫地址",
+          recipient_name: "未填寫收件人姓名",
+          phone: "未填寫聯絡電話",
         },
         status: "pending",
+        created_at: new Date().toISOString(),
       };
 
       const { error: orderError } = await supabase.from("orders").insert([orderPayload]);
