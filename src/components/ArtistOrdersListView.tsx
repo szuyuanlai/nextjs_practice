@@ -171,13 +171,21 @@ function formatDateTime(iso: string) {
 }
 
 function normalizeStatus(status: string | null) {
-  if (status === "completed") {
+  const value = (status ?? "").trim().toLowerCase();
+
+  if (value === "completed") {
     return "completed";
   }
-  if (status === "in_progress") {
+
+  if (value === "in_progress" || value === "processing") {
     return "in_progress";
   }
-  return "draft";
+
+  if (!value || ["pending", "draft", "created"].includes(value)) {
+    return "pending";
+  }
+
+  return "pending";
 }
 
 function getStatusConfig(status: string | null) {
@@ -309,7 +317,6 @@ export default function ArtistOrdersListView() {
             characters:characters!orders_character_id_fkey(*)
           `)
           .eq("artist_id", user.id)
-          .not("merch_type", "is", null)
           .order("created_at", { ascending: false }),
         supabase.from("profiles").select("id,display_name,full_name,avatar_url"),
         supabase.from("characters").select("id,character_name"),
@@ -421,7 +428,6 @@ export default function ArtistOrdersListView() {
           characters:characters!orders_character_id_fkey(*)
         `)
         .eq("artist_id", user.id)
-        .not("merch_type", "is", null)
         .order("created_at", { ascending: false }),
       supabase.from("profiles").select("id,display_name,full_name,avatar_url"),
       supabase.from("characters").select("id,character_name"),

@@ -1,7 +1,7 @@
 "use client";
 
 import Link from "next/link";
-import { ArrowLeft, Palette, Sparkles } from "lucide-react";
+import { ArrowLeft, Palette } from "lucide-react";
 import { ArtistMarquee } from "@/src/components/ArtistMarquee";
 
 export default function ArtistsPage() {
@@ -28,13 +28,7 @@ export default function ArtistsPage() {
           <ArtistMarquee />
         </section>
 
-        <section className="mt-6 rounded-[30px] border border-dashed border-sky-200 bg-white p-6 text-sm text-slate-600 shadow-sm">
-          <div className="inline-flex items-center gap-2 text-sky-700">
-            <Sparkles className="h-4 w-4" />
-            頁面已建立
-          </div>
-          <p className="mt-2">如果你在 Vercel 看到 404，請確認這些路由所在分支已經 git commit 並 push 到遠端。</p>
-        </section>
+        
       </div>
     </main>
   );
