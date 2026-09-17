@@ -413,14 +413,14 @@ export function Navbar() {
                 <div className="h-10 w-full animate-pulse rounded-xl bg-sky-100" />
               ) : user ? (
                 <div className="space-y-2">
-                  <Link
+                  {/* <Link
                     href="/profile"
                     className="flex items-center gap-2 rounded-xl px-3 py-2.5 text-sm font-medium text-slate-700 transition hover:bg-sky-50"
                     onClick={() => setIsMobileMenuOpen(false)}
                   >
                     <UserCircle2 className="h-4 w-4" />
                     個人資料
-                  </Link>
+                  </Link> */}
 
                   {(normalizedRole === "ARTIST" || normalizedRole === "ADMIN") && (
                     <>

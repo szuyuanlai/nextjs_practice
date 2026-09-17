@@ -33,6 +33,8 @@ type EnrichedCharacterOrder = CharacterOrderRow & {
   clientName: string;
 };
 
+type OrdersTab = "pending" | "completed";
+
 function formatDateTime(iso: string) {
   const date = new Date(iso);
   if (Number.isNaN(date.getTime())) {
@@ -109,6 +111,7 @@ export default function ArtistOrdersListView() {
   const [orders, setOrders] = useState<EnrichedCharacterOrder[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
+  const [activeTab, setActiveTab] = useState<OrdersTab>("pending");
 
   useEffect(() => {
     let cancelled = false;
@@ -185,6 +188,20 @@ export default function ArtistOrdersListView() {
     [orders],
   );
 
+  const pendingCount = useMemo(
+    () => orders.filter((order) => normalizeStatus(order.status) !== "completed").length,
+    [orders],
+  );
+
+  const filteredOrders = useMemo(
+    () =>
+      orders.filter((order) => {
+        const normalized = normalizeStatus(order.status);
+        return activeTab === "completed" ? normalized === "completed" : normalized !== "completed";
+      }),
+    [activeTab, orders],
+  );
+
   return (
     <main className="min-h-screen bg-[linear-gradient(180deg,#f1fbff_0%,#edf7ff_18%,#ffffff_100%)] px-4 py-8 text-slate-800 sm:px-6 lg:px-8">
       <div className="mx-auto max-w-6xl">
@@ -226,6 +243,35 @@ export default function ArtistOrdersListView() {
           </div>
         ) : null}
 
+        <section className="mb-6 rounded-2xl border border-sky-100 bg-white p-2 shadow-sm">
+          <div className="grid grid-cols-1 gap-2 sm:grid-cols-2">
+            <button
+              type="button"
+              onClick={() => setActiveTab("pending")}
+              className={[
+                "rounded-xl px-4 py-2.5 text-sm font-semibold transition",
+                activeTab === "pending"
+                  ? "bg-sky-600 text-white shadow-sm"
+                  : "bg-slate-50 text-slate-700 hover:bg-slate-100",
+              ].join(" ")}
+            >
+              待處理訂單 ({pendingCount})
+            </button>
+            <button
+              type="button"
+              onClick={() => setActiveTab("completed")}
+              className={[
+                "rounded-xl px-4 py-2.5 text-sm font-semibold transition",
+                activeTab === "completed"
+                  ? "bg-emerald-500 text-white shadow-sm"
+                  : "bg-slate-50 text-slate-700 hover:bg-slate-100",
+              ].join(" ")}
+            >
+              已完成訂單 ({completedCount})
+            </button>
+          </div>
+        </section>
+
         {isLoading ? (
           <div className="flex min-h-[220px] items-center justify-center rounded-[30px] border border-sky-100 bg-white shadow-sm">
             <div className="flex items-center gap-3 text-slate-600">
@@ -233,15 +279,24 @@ export default function ArtistOrdersListView() {
               載入委託訂單中...
             </div>
           </div>
-        ) : orders.length === 0 ? (
+        ) : filteredOrders.length === 0 ? (
           <div className="rounded-[30px] border border-dashed border-sky-200 bg-white p-12 text-center shadow-sm">
             <ClipboardList className="mx-auto mb-3 h-10 w-10 text-sky-500" />
-            <p className="text-xl font-black text-slate-900">目前沒有分派給你的委託</p>
-            <p className="mt-2 text-slate-600">當客戶建立角色並選擇你後，這裡會自動顯示該筆需求。</p>
+            {activeTab === "pending" ? (
+              <>
+                <p className="text-xl font-black text-slate-900">目前沒有待處理訂單</p>
+                <p className="mt-2 text-slate-600">新的待接單與進行中委託會顯示在這裡。</p>
+              </>
+            ) : (
+              <>
+                <p className="text-xl font-black text-slate-900">目前沒有已完成訂單</p>
+                <p className="mt-2 text-slate-600">完成交付後的委託會顯示在這裡。</p>
+              </>
+            )}
           </div>
         ) : (
           <div className="grid gap-5 md:grid-cols-2 xl:grid-cols-3">
-            {orders.map((order) => {
+            {filteredOrders.map((order) => {
               const statusConfig = getStatusConfig(order.status);
 
               return (

@@ -32,7 +32,8 @@ type ProfileRow = {
 
 type TabKey = "profile" | "portfolio";
 
-const STORAGE_FALLBACKS = ["avatars", "artist-assets"] as const;
+const AVATAR_BUCKETS = ["avatars", "artist-assets"] as const;
+const BANNER_BUCKETS = ["artist-banners"] as const;
 const PORTFOLIO_BUCKETS = ["portfolios", "artist-assets"] as const;
 
 export default function AccountPage() {
@@ -156,7 +157,7 @@ export default function AccountPage() {
     setAvatarUploading(true);
     try {
       const path = `${profile.id ?? user?.id}/avatar-${Date.now()}-${avatarFile.name}`;
-      const { publicUrl } = await uploadFileToBucket(supabase, STORAGE_FALLBACKS, avatarFile, path);
+      const { publicUrl } = await uploadFileToBucket(supabase, AVATAR_BUCKETS, avatarFile, path);
 
       const { error } = await supabase
         .from("profiles")
@@ -181,7 +182,7 @@ export default function AccountPage() {
     setBannerUploading(true);
     try {
       const path = `${profile.id ?? user?.id}/banner-${Date.now()}-${bannerFile.name}`;
-      const { publicUrl } = await uploadFileToBucket(supabase, STORAGE_FALLBACKS, bannerFile, path);
+      const { publicUrl } = await uploadFileToBucket(supabase, BANNER_BUCKETS, bannerFile, path);
 
       const { error } = await supabase
         .from("profiles")

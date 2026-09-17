@@ -83,13 +83,28 @@ export async function fetchArtistPortfolios(supabase: any, artistId: string) {
 }
 
 export async function uploadFileToBucket(supabase: any, bucketNames: readonly string[], file: File, path: string) {
+  const uploadErrors: Array<{ bucketName: string; message: string }> = [];
+
   for (const bucketName of bucketNames) {
     const { error } = await supabase.storage.from(bucketName).upload(path, file, { upsert: true });
     if (!error) {
       const { data: publicData } = supabase.storage.from(bucketName).getPublicUrl(path);
       return { bucketName, publicUrl: publicData.publicUrl };
     }
+
+    console.error("Storage upload failed", {
+      bucketName,
+      path,
+      error,
+      message: error.message,
+      details: (error as { details?: string }).details,
+      hint: (error as { hint?: string }).hint,
+      code: (error as { code?: string }).code,
+    });
+    uploadErrors.push({ bucketName, message: error.message });
   }
 
-  throw new Error("Storage bucket unavailable");
+  throw new Error(
+    `Storage bucket unavailable: ${uploadErrors.map((item) => `${item.bucketName}(${item.message})`).join(", ")}`,
+  );
 }

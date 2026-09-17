@@ -8,7 +8,9 @@ import { supabase } from "@/src/lib/supabase/client";
 import FileUploadField from "@/src/components/FileUploadField";
 import type { ArtistProfile, PortfolioItem } from "@/src/types/artist";
 
-const BUCKET = "artist-assets";
+const AVATAR_BUCKET = "artist-assets";
+const ARTIST_BANNER_BUCKET = "artist-banners";
+const PORTFOLIO_BUCKET = "artist-assets";
 
 type AuthorizedCharacter = {
   id: string;
@@ -157,14 +159,22 @@ export default function ArtistProfilePage() {
     setUploading(true);
     const path = `${profile.id}/avatar-${Date.now()}-${avatarFile.name}`;
 
-    const { error: upErr } = await supabase.storage.from(BUCKET).upload(path, avatarFile, { upsert: true });
+    const { error: upErr } = await supabase.storage.from(AVATAR_BUCKET).upload(path, avatarFile, { upsert: true });
     if (upErr) {
-      console.error("上傳失敗: ", upErr.message);
+      console.error("上傳失敗", {
+        bucketName: AVATAR_BUCKET,
+        path,
+        error: upErr,
+        message: upErr.message,
+        details: upErr.details,
+        hint: upErr.hint,
+        code: upErr.code,
+      });
       setUploading(false);
       return;
     }
 
-    const { data: publicData } = supabase.storage.from(BUCKET).getPublicUrl(path);
+    const { data: publicData } = supabase.storage.from(AVATAR_BUCKET).getPublicUrl(path);
     const publicUrl = publicData.publicUrl;
 
     const { error: upd } = await supabase.from("profiles").update({ avatar_url: publicUrl }).eq("id", profile.id);
@@ -198,14 +208,22 @@ export default function ArtistProfilePage() {
     setUploading(true);
     const path = `${profile.id}/cover-${Date.now()}-${coverFile.name}`;
 
-    const { error: upErr } = await supabase.storage.from(BUCKET).upload(path, coverFile, { upsert: true });
+    const { error: upErr } = await supabase.storage.from(ARTIST_BANNER_BUCKET).upload(path, coverFile, { upsert: true });
     if (upErr) {
-      console.error("封面上傳失敗: ", upErr.message);
+      console.error("封面上傳失敗", {
+        bucketName: ARTIST_BANNER_BUCKET,
+        path,
+        error: upErr,
+        message: upErr.message,
+        details: upErr.details,
+        hint: upErr.hint,
+        code: upErr.code,
+      });
       setUploading(false);
       return;
     }
 
-    const { data: publicData } = supabase.storage.from(BUCKET).getPublicUrl(path);
+    const { data: publicData } = supabase.storage.from(ARTIST_BANNER_BUCKET).getPublicUrl(path);
     const publicUrl = publicData.publicUrl;
 
     const { error: upd } = await supabase.from("profiles").update({ cover_url: publicUrl }).eq("id", profile.id);
@@ -266,13 +284,21 @@ export default function ArtistProfilePage() {
       const file = files[i];
       const path = `${profile.id}/portfolio-${Date.now()}-${i}-${file.name}`;
 
-      const { error: upErr } = await supabase.storage.from(BUCKET).upload(path, file, { upsert: true });
+      const { error: upErr } = await supabase.storage.from(PORTFOLIO_BUCKET).upload(path, file, { upsert: true });
       if (upErr) {
-        console.error("upload error", upErr.message);
+        console.error("upload error", {
+          bucketName: PORTFOLIO_BUCKET,
+          path,
+          error: upErr,
+          message: upErr.message,
+          details: upErr.details,
+          hint: upErr.hint,
+          code: upErr.code,
+        });
         continue;
       }
 
-      const { data: publicData } = supabase.storage.from(BUCKET).getPublicUrl(path);
+      const { data: publicData } = supabase.storage.from(PORTFOLIO_BUCKET).getPublicUrl(path);
       const publicUrl = publicData.publicUrl;
 
       const title = file.name.replace(/\.[^/.]+$/, "");
@@ -317,7 +343,7 @@ export default function ArtistProfilePage() {
 
     // Attempt to remove storage file if we have path
     if (item.storage_path) {
-      const { error: rmErr } = await supabase.storage.from(BUCKET).remove([item.storage_path]);
+      const { error: rmErr } = await supabase.storage.from(PORTFOLIO_BUCKET).remove([item.storage_path]);
       if (rmErr) {
         console.warn("無法刪除 storage 檔案:", rmErr.message);
       }

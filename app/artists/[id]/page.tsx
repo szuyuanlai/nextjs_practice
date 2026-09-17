@@ -2,11 +2,10 @@
 
 import Link from "next/link";
 import { use, useEffect, useMemo, useState } from "react";
-import { ArrowRight, CheckCircle2, Palette, Sparkles, Star } from "lucide-react";
+import { ArrowRight, Palette, Sparkles, Star } from "lucide-react";
 import { getSupabaseClient } from "@/src/lib/supabase/client";
 import type { ArtistProfile, PortfolioItem } from "@/src/types/artist";
 import ArtistGallery from "@/src/components/ArtistGallery";
-import PricingTable from "@/src/components/PricingTable";
 
 type Props = {
   params: Promise<{ id: string }>;
@@ -121,7 +120,6 @@ export default function ArtistPage({ params }: Props) {
   const coverUrl = artist?.cover_url?.trim() || "";
 
   const portfolioCount = publicPortfolios.length;
-  const highlightTags = ["角色設計", "品牌聯名", "人設表現", "可愛系風格"];
 
   if (isLoading) {
     return (
@@ -201,14 +199,6 @@ export default function ArtistPage({ params }: Props) {
                 {artist.bio ?? "此繪師尚未填寫自我介紹，歡迎先查看作品集與合作方案。"}
               </p>
 
-              <div className="mt-6 flex flex-wrap gap-2">
-                {highlightTags.map((tag) => (
-                  <span key={tag} className="rounded-full border border-sky-200 bg-sky-50 px-3 py-1.5 text-xs font-semibold text-sky-700">
-                    {tag}
-                  </span>
-                ))}
-              </div>
-
               <div className="mt-8 flex flex-wrap gap-3">
                 <Link
                   href={`/orders/new?artist=${encodeURIComponent(id)}`}
@@ -216,12 +206,6 @@ export default function ArtistPage({ params }: Props) {
                 >
                   立即預約 <ArrowRight className="h-4 w-4" />
                 </Link>
-                <a
-                  href="#pricing"
-                  className="inline-flex items-center gap-2 rounded-full border border-sky-200 bg-white px-5 py-3 font-semibold text-sky-700 transition hover:border-sky-300 hover:bg-sky-50"
-                >
-                  查看方案
-                </a>
               </div>
             </div>
           </div>
@@ -265,16 +249,6 @@ export default function ArtistPage({ params }: Props) {
           )}
         </section>
 
-        <section id="pricing" className="mb-10 rounded-[30px] border border-sky-100 bg-white p-6 shadow-[0_20px_80px_rgba(14,116,144,0.05)] sm:p-8">
-          <div className="mb-6">
-            <p className="mb-2 inline-flex items-center gap-2 rounded-full border border-sky-200 bg-sky-50 px-3 py-1 text-[11px] font-semibold uppercase tracking-[0.2em] text-sky-700">
-              <CheckCircle2 className="h-3.5 w-3.5" />
-              方案價目
-            </p>
-            <h2 className="text-2xl font-black tracking-tight text-slate-900">依需求選擇適合的合作方案</h2>
-          </div>
-          <PricingTable artistId={id} />
-        </section>
       </div>
     </main>
   );

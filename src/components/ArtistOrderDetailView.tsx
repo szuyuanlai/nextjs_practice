@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { AlertTriangle, ArrowLeft, CheckCircle2, Loader2, UploadCloud } from "lucide-react";
 import FileUploadField from "@/src/components/FileUploadField";
 import { uploadFileToBucket } from "@/src/lib/artist-data";
@@ -118,6 +118,8 @@ export default function ArtistOrderDetailView({ orderId }: Props) {
   const [characterSheetFiles, setCharacterSheetFiles] = useState<File[]>([]);
   const [characterIconFiles, setCharacterIconFiles] = useState<File[]>([]);
   const [artistUserId, setArtistUserId] = useState<string | null>(null);
+  const characterSheetSectionRef = useRef<HTMLDivElement | null>(null);
+  const characterIconSectionRef = useRef<HTMLDivElement | null>(null);
 
   useEffect(() => {
     let cancelled = false;
@@ -221,12 +223,20 @@ export default function ArtistOrderDetailView({ orderId }: Props) {
     }
 
     if (characterSheetFiles.length === 0 && !currentCharacterSheetUrl) {
-      setErrorMessage("請先上傳角色三視圖，再確認交付。");
+      const message = "請先上傳角色三視圖";
+      setErrorMessage(message);
+      window.alert(message);
+      characterSheetSectionRef.current?.scrollIntoView({ behavior: "smooth", block: "center" });
+      characterSheetSectionRef.current?.focus();
       return;
     }
 
     if (characterIconFiles.length === 0 && !currentCharacterIconUrl) {
-      setErrorMessage("請先上傳角色臉部頭像/Icon，再確認交付。");
+      const message = "請先上傳角色臉部頭像";
+      setErrorMessage(message);
+      window.alert(message);
+      characterIconSectionRef.current?.scrollIntoView({ behavior: "smooth", block: "center" });
+      characterIconSectionRef.current?.focus();
       return;
     }
 
@@ -478,7 +488,11 @@ export default function ArtistOrderDetailView({ orderId }: Props) {
                 請分別上傳角色三視圖與角色 Icon。完成交付後，系統會同步更新客戶端角色縮圖與正式角色圖像。
               </p>
 
-              <div className="mt-4 rounded-2xl border border-sky-100 bg-sky-50/50 p-4">
+              <div
+                ref={characterSheetSectionRef}
+                tabIndex={-1}
+                className="mt-4 rounded-2xl border border-sky-100 bg-sky-50/50 p-4 focus:outline-none focus:ring-2 focus:ring-sky-400"
+              >
                 <p className="mb-3 text-sm font-semibold text-slate-900">上傳角色三視圖</p>
                 <FileUploadField
                   id="artist-order-character-sheet-upload"
@@ -501,7 +515,11 @@ export default function ArtistOrderDetailView({ orderId }: Props) {
                 ) : null}
               </div>
 
-              <div className="mt-4 rounded-2xl border border-sky-100 bg-sky-50/50 p-4">
+              <div
+                ref={characterIconSectionRef}
+                tabIndex={-1}
+                className="mt-4 rounded-2xl border border-sky-100 bg-sky-50/50 p-4 focus:outline-none focus:ring-2 focus:ring-sky-400"
+              >
                 <p className="mb-3 text-sm font-semibold text-slate-900">上傳角色臉部頭像 / Icon</p>
                 <FileUploadField
                   id="artist-order-character-icon-upload"
