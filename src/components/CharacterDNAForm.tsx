@@ -41,7 +41,7 @@ type ArtistProfile = {
   surcharge_multiplier?: number;
 };
 
-const PERSONALITY_PRESETS = ["傲嬌", "病嬌", "溫柔", "天然", "腹黑", "元氣", "理性", "冷酷"];
+const PERSONALITY_PRESETS = ["溫柔","傲嬌", "呆萌",  "天然", "腹黑", "元氣", "媽媽", "冷酷"];
 const STORAGE_BUCKET_CANDIDATES = ["character-references", "order-assets", "artist-assets"];
 
 const initialForm: FormState = {
@@ -72,9 +72,9 @@ const BODY_TYPE_OPTIONS = [
 const MALE_BODY_TYPE_OPTIONS = [
   { label: "正太 (XS)", value: "正太 (XS)" },
   { label: "少年 (S)", value: "少年 (S)" },
-  { label: "成男", value: "成男" },
-  { label: "熟男", value: "熟男" },
-  { label: "大叔", value: "大叔" },
+  { label: "成男 (M)", value: "成男 (M)" },
+  { label: "熟男 (L)", value: "熟男 (L)" },
+  { label: "大叔 (XL)", value: "大叔 (XL)" },
 ];
 
 const MUSCLE_LEVEL_OPTIONS: string[] = ["瘦弱", "正常", "精壯", "超壯"];
@@ -429,8 +429,8 @@ export default function CharacterDNAForm() {
           user_id: user.id,
           artist_id: selectedArtist.id,
           status: "draft",
-          name: normalizedName,
-          gender: normalizedGender,
+          character_name: normalizedName,
+          character_gender: normalizedGender,
           personality_tags: normalizedPersonalityTags,
           bio: normalizedBio,
           hairstyle: normalizedHairstyle,
@@ -445,7 +445,7 @@ export default function CharacterDNAForm() {
           selected_artist_name: normalizedArtistName,
           is_public_portfolio: form.isPublicPortfolio,
           appearance_details: appearanceDetails,
-          image_urls: normalizedImageUrls,
+          reference_image_urls: normalizedImageUrls,
           created_at: new Date().toISOString(),
         })
         .select("id")
@@ -627,7 +627,7 @@ export default function CharacterDNAForm() {
               ref={(element) => setFieldRef("name", element)}
               value={form.name}
               onChange={(event) => setField("name", event.target.value)}
-              placeholder="例如：夜色織夢"
+              placeholder="例如：賴思源"
               className={getInputClassName(
                 "name",
                 "rounded-2xl border border-sky-100 bg-sky-50/60 px-4 py-3 text-slate-800 placeholder:text-slate-400 focus:border-sky-400 focus:outline-none",
@@ -874,7 +874,7 @@ export default function CharacterDNAForm() {
               className="mt-1 h-4 w-4 rounded border-sky-300 text-sky-600"
             />
             <span>
-              <span className="block font-semibold text-slate-900">授權繪師收錄至個人公開作品集 (Portfolio Authorization)</span>
+              <span className="block font-semibold text-slate-900">授權繪師收錄至個人公開作品集</span>
               <span className="mt-1 block text-slate-600">勾選後，繪師可在完稿後將此作品展示於個人作品集頁面。</span>
             </span>
           </label>

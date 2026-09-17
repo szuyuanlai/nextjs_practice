@@ -11,9 +11,9 @@ type CharacterListItem = {
   character_name: string;
   created_at: string;
   status: string | null;
-  gender: string | null;
+  character_gender: string | null;
   personality_tags: string[] | null;
-  image_urls: string[] | null;
+  reference_image_urls: string[] | null;
   character_sheet_url: string | null;
   character_icon_url: string | null;
   appearance_details: Record<string, unknown> | null;
@@ -104,7 +104,7 @@ export default function CharactersListView() {
 
       const { data, error } = await supabase
         .from("characters")
-        .select("id,character_name,created_at,status,gender,personality_tags,image_urls,character_sheet_url,character_icon_url,appearance_details")
+        .select("id,character_name,created_at,status,character_gender,personality_tags,reference_image_urls,character_sheet_url,character_icon_url,appearance_details")
         .eq("user_id", user.id)
         .order("created_at", { ascending: false });
 

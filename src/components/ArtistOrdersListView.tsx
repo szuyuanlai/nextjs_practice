@@ -15,7 +15,7 @@ type CharacterOrderRow = {
   character_name: string;
   status: string | null;
   created_at: string;
-  image_urls?: string[] | null;
+  reference_image_urls?: string[] | null;
   character_sheet_url?: string | null;
   character_icon_url?: string | null;
   is_anonymous?: boolean | null;
@@ -252,7 +252,7 @@ export default function ArtistOrdersListView() {
         supabase
           .from("characters")
           .select(
-            "id,user_id,artist_id,character_name,status,created_at,image_urls,character_sheet_url,character_icon_url,is_anonymous,personality_tags,bio,hairstyle,hair_color,eye_style,eye_color,height_body_type,bust_size,outfit_accessories,additional_notes,appearance_details,client:profiles!characters_user_id_fkey(display_name,full_name)",
+            "id,user_id,artist_id,character_name,status,created_at,reference_image_urls,character_sheet_url,character_icon_url,is_anonymous,personality_tags,bio,hairstyle,hair_color,eye_style,eye_color,height_body_type,bust_size,outfit_accessories,additional_notes,appearance_details,client:profiles!characters_user_id_fkey(display_name,full_name)",
           )
           .eq("artist_id", user.id)
           .order("created_at", { ascending: false }),
@@ -345,7 +345,7 @@ export default function ArtistOrdersListView() {
       supabase
         .from("characters")
         .select(
-          "id,user_id,artist_id,character_name,status,created_at,image_urls,character_sheet_url,character_icon_url,is_anonymous,personality_tags,bio,hairstyle,hair_color,eye_style,eye_color,height_body_type,bust_size,outfit_accessories,additional_notes,appearance_details,client:profiles!characters_user_id_fkey(display_name,full_name)",
+          "id,user_id,artist_id,character_name,status,created_at,reference_image_urls,character_sheet_url,character_icon_url,is_anonymous,personality_tags,bio,hairstyle,hair_color,eye_style,eye_color,height_body_type,bust_size,outfit_accessories,additional_notes,appearance_details,client:profiles!characters_user_id_fkey(display_name,full_name)",
         )
         .eq("artist_id", user.id)
         .order("created_at", { ascending: false }),
@@ -519,7 +519,7 @@ export default function ArtistOrdersListView() {
         characterIconUrl,
       });
 
-      const existingImageUrls = parseStringArray(order.image_urls ?? []);
+      const existingImageUrls = parseStringArray(order.reference_image_urls ?? []);
       const existingDeliveryUrls = parseStringArray(order.appearance_details?.delivery_asset_urls);
       const nextDeliveryUrls = uniqueStrings([...existingDeliveryUrls, characterSheetUrl, characterIconUrl]);
       const nextImageUrls = uniqueStrings([...existingImageUrls, characterSheetUrl, characterIconUrl]);
@@ -534,7 +534,7 @@ export default function ArtistOrdersListView() {
         status: "completed",
         character_icon_url: characterIconUrl,
         character_sheet_url: characterSheetUrl,
-        image_urls: nextImageUrls,
+        reference_image_urls: nextImageUrls,
         appearance_details: nextAppearance,
       });
 

@@ -15,12 +15,12 @@ type CharacterRecord = {
   user_id: string;
   artist_id: string | null;
   character_name: string;
-  gender: string | null;
+  character_gender: string | null;
   status: CharacterStatus | null;
   personality_tags: string[] | null;
   bio: string | null;
   appearance_details: Record<string, unknown> | null;
-  image_urls: string[] | null;
+  reference_image_urls: string[] | null;
   character_sheet_url: string | null;
   character_icon_url: string | null;
   created_at: string;
@@ -153,7 +153,7 @@ export default function ArtistOrderDetailView({ orderId }: Props) {
 
       const { data, error } = await supabase
         .from("characters")
-        .select("id,user_id,artist_id,character_name,gender,status,personality_tags,bio,appearance_details,image_urls,character_sheet_url,character_icon_url,created_at")
+        .select("id,user_id,artist_id,character_name,character_gender,status,personality_tags,bio,appearance_details,reference_image_urls,character_sheet_url,character_icon_url,created_at")
         .eq("id", orderId)
         .eq("artist_id", user.id)
         .maybeSingle();
@@ -208,14 +208,14 @@ export default function ArtistOrderDetailView({ orderId }: Props) {
   const currentCharacterIconUrl = character?.character_icon_url?.trim() || "";
   const referenceImageUrls = useMemo(() => {
     const explicitReferenceUrls = parseStringArray(appearance?.reference_image_urls);
-    const allImageUrls = parseStringArray(character?.image_urls ?? []);
+    const allImageUrls = parseStringArray(character?.reference_image_urls ?? []);
 
     if (explicitReferenceUrls.length > 0) {
       return explicitReferenceUrls;
     }
 
     return allImageUrls.filter((url) => !deliveryAssetUrls.includes(url));
-  }, [appearance, character?.image_urls, deliveryAssetUrls]);
+  }, [appearance, character?.reference_image_urls, deliveryAssetUrls]);
 
   const handleConfirmDelivery = async () => {
     if (!character || !artistUserId) {
@@ -287,7 +287,7 @@ export default function ArtistOrderDetailView({ orderId }: Props) {
           status: "completed",
           character_sheet_url: nextCharacterSheetUrl,
           character_icon_url: nextCharacterIconUrl,
-          image_urls: nextImageUrls,
+          reference_image_urls: nextImageUrls,
           appearance_details: nextAppearance,
         })
         .eq("id", character.id)
@@ -302,7 +302,7 @@ export default function ArtistOrderDetailView({ orderId }: Props) {
         status: "completed",
         character_sheet_url: nextCharacterSheetUrl,
         character_icon_url: nextCharacterIconUrl,
-        image_urls: nextImageUrls,
+        reference_image_urls: nextImageUrls,
         appearance_details: nextAppearance,
       });
       setCharacterSheetFiles([]);
@@ -401,7 +401,7 @@ export default function ArtistOrderDetailView({ orderId }: Props) {
               <dl className="mt-4 grid gap-4 text-sm">
                 <div>
                   <dt className="font-semibold text-slate-500">性別 / 性向</dt>
-                  <dd className="mt-1 text-slate-800">{character.gender || "未設定"}</dd>
+                  <dd className="mt-1 text-slate-800">{character.character_gender || "未設定"}</dd>
                 </div>
                 <div>
                   <dt className="font-semibold text-slate-500">性格標籤</dt>

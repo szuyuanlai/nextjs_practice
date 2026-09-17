@@ -10,12 +10,12 @@ type CharacterRecord = {
   id: string;
   user_id: string;
   character_name: string;
-  gender: string | null;
+  character_gender: string | null;
   status: string | null;
   personality_tags: string[] | null;
   bio: string | null;
   appearance_details: Record<string, unknown> | null;
-  image_urls: string[] | null;
+  reference_image_urls: string[] | null;
   character_sheet_url: string | null;
   character_icon_url: string | null;
   created_at: string;
@@ -116,7 +116,7 @@ export default function CharacterDetailView({ characterId }: Props) {
 
       const { data, error } = await supabase
         .from("characters")
-        .select("id,user_id,character_name,gender,status,personality_tags,bio,appearance_details,image_urls,character_sheet_url,character_icon_url,created_at")
+        .select("id,user_id,character_name,character_gender,status,personality_tags,bio,appearance_details,reference_image_urls,character_sheet_url,character_icon_url,created_at")
         .eq("id", characterId)
         .eq("user_id", user.id)
         .maybeSingle();
@@ -161,8 +161,8 @@ export default function CharacterDetailView({ characterId }: Props) {
       [character?.character_sheet_url ?? "", character?.character_icon_url ?? ""].filter((value) => value.length > 0),
     );
 
-    return parseStringArray(character?.image_urls ?? []).filter((url) => !excludedUrls.has(url));
-  }, [appearance, character?.character_icon_url, character?.character_sheet_url, character?.image_urls]);
+    return parseStringArray(character?.reference_image_urls ?? []).filter((url) => !excludedUrls.has(url));
+  }, [appearance, character?.character_icon_url, character?.character_sheet_url, character?.reference_image_urls]);
 
   if (loading) {
     return (
@@ -246,7 +246,7 @@ export default function CharacterDetailView({ characterId }: Props) {
             <dl className="mt-4 grid gap-4 text-sm">
               <div>
                 <dt className="font-semibold text-slate-500">性別 / 性向</dt>
-                <dd className="mt-1 text-slate-800">{character.gender || "未設定"}</dd>
+                <dd className="mt-1 text-slate-800">{character.character_gender || "未設定"}</dd>
               </div>
               <div>
                 <dt className="font-semibold text-slate-500">性格標籤</dt>

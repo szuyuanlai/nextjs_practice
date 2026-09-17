@@ -18,7 +18,7 @@ type AuthorizedCharacter = {
   artist_id: string | null;
   status: string | null;
   is_public_portfolio: boolean | null;
-  image_urls: string[] | null;
+  reference_image_urls: string[] | null;
   appearance_details: Record<string, unknown> | null;
   created_at: string | null;
 };
@@ -42,7 +42,7 @@ function getCharacterPortfolioPreview(character: AuthorizedCharacter) {
     return deliveryUrls[0];
   }
 
-  const imageUrls = parseStringArray(character.image_urls);
+  const imageUrls = parseStringArray(character.reference_image_urls);
   return imageUrls[0] ?? null;
 }
 
@@ -126,7 +126,7 @@ export default function ArtistProfilePage() {
 
       const { data: characterItems } = await supabase
         .from("characters")
-        .select("id,character_name,artist_id,status,is_public_portfolio,image_urls,appearance_details,created_at")
+        .select("id,character_name,artist_id,status,is_public_portfolio,reference_image_urls,appearance_details,created_at")
         .eq("artist_id", user.id)
         .eq("status", "completed")
         .eq("is_public_portfolio", true)
@@ -255,7 +255,7 @@ export default function ArtistProfilePage() {
 
     const { data, error } = await supabase
       .from("characters")
-      .select("id,character_name,artist_id,status,is_public_portfolio,image_urls,appearance_details,created_at")
+      .select("id,character_name,artist_id,status,is_public_portfolio,reference_image_urls,appearance_details,created_at")
       .eq("artist_id", artistId)
       .eq("status", "completed")
       .eq("is_public_portfolio", true)
