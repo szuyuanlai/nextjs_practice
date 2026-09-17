@@ -76,7 +76,29 @@ export default function OrderDetailPage({ params }: Props) {
 
       const { data, error: queryError } = await supabase
         .from("orders")
-        .select("*")
+        .select(`
+          *,
+          characters:character_id (
+            id,
+            character_name,
+            character_gender,
+            personality_tags,
+            bio,
+            hairstyle,
+            hair_color,
+            eye_style,
+            eye_color,
+            height_body_type,
+            bust_size,
+            theme_color,
+            outfit_accessories,
+            additional_notes,
+            selected_artist_name,
+            reference_image_urls,
+            is_anonymous,
+            created_at
+          )
+        `)
         .eq("id", id)
         .eq("user_id", authData.user.id)
         .maybeSingle();
@@ -93,25 +115,10 @@ export default function OrderDetailPage({ params }: Props) {
         return;
       }
 
-      const orderData = data as OrderRow;
+      const orderData = data as OrderRow & { characters?: CharacterRow[] | null };
       setOrder(orderData);
 
-      const characterQuery = orderData.character_id
-        ? supabase
-            .from("characters")
-            .select("id,character_name,character_gender,personality_tags,bio,hairstyle,hair_color,eye_style,eye_color,height_body_type,bust_size,theme_color,outfit_accessories,additional_notes,selected_artist_name,reference_image_urls,is_anonymous,created_at")
-            .eq("id", orderData.character_id)
-            .eq("user_id", authData.user.id)
-            .maybeSingle()
-        : supabase
-            .from("characters")
-            .select("id,character_name,character_gender,personality_tags,bio,hairstyle,hair_color,eye_style,eye_color,height_body_type,bust_size,theme_color,outfit_accessories,additional_notes,selected_artist_name,reference_image_urls,is_anonymous,created_at")
-            .eq("user_id", authData.user.id)
-            .order("created_at", { ascending: false })
-            .limit(1)
-            .maybeSingle();
-
-      const { data: characterData } = await characterQuery;
+      const characterData = orderData.characters && orderData.characters.length > 0 ? orderData.characters[0] : null;
       setCharacter((characterData as CharacterRow | null) ?? null);
       setIsLoading(false);
     };

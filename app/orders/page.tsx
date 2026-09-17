@@ -39,6 +39,7 @@ type MerchandiseOrderRow = {
   delivery_file_url?: string | null;
   status?: string | null;
   created_at: string;
+  characters?: CharacterOrderRow[] | null;
 };
 
 type ArtistProfile = {
@@ -147,13 +148,75 @@ export default function OrdersPage() {
           .order("created_at", { ascending: false }),
         supabase
           .from("orders")
-          .select("id,user_id,character_id,merch_type,requirements,shipping_address,delivery_file_url,status,created_at")
+          .select(`
+            id,
+            user_id,
+            character_id,
+            merch_type,
+            requirements,
+            shipping_address,
+            delivery_file_url,
+            status,
+            created_at,
+            characters:character_id (
+              id,
+              character_name,
+              character_gender,
+              personality_tags,
+              bio,
+              hairstyle,
+              hair_color,
+              eye_style,
+              eye_color,
+              height_body_type,
+              bust_size,
+              theme_color,
+              outfit_accessories,
+              additional_notes,
+              selected_artist_name,
+              reference_image_urls,
+              is_anonymous,
+              status,
+              created_at
+            )
+          `)
           .eq("user_id", userId)
           .not("merch_type", "is", null)
           .order("created_at", { ascending: false }),
         supabase
           .from("orders")
-          .select("id,user_id,character_id,merch_type,requirements,shipping_address,delivery_file_url,status,created_at")
+          .select(`
+            id,
+            user_id,
+            character_id,
+            merch_type,
+            requirements,
+            shipping_address,
+            delivery_file_url,
+            status,
+            created_at,
+            characters:character_id (
+              id,
+              character_name,
+              character_gender,
+              personality_tags,
+              bio,
+              hairstyle,
+              hair_color,
+              eye_style,
+              eye_color,
+              height_body_type,
+              bust_size,
+              theme_color,
+              outfit_accessories,
+              additional_notes,
+              selected_artist_name,
+              reference_image_urls,
+              is_anonymous,
+              status,
+              created_at
+            )
+          `)
           .eq("user_id", userId)
           .not("merch_type", "is", null)
           .order("created_at", { ascending: false }),
@@ -203,7 +266,12 @@ export default function OrdersPage() {
         createdAt: merchOrder.created_at,
         status: merchOrder.status ?? null,
         artist: null,
-        character: merchOrder.character_id ? characterBasicMap.get(merchOrder.character_id) ?? null : null,
+        character:
+          merchOrder.characters && merchOrder.characters.length > 0
+            ? merchOrder.characters[0]
+            : merchOrder.character_id
+              ? characterBasicMap.get(merchOrder.character_id) ?? null
+              : null,
         merchOrder,
       }));
 

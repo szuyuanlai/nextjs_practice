@@ -281,9 +281,11 @@ export default function ShopPage() {
           pose: requirements.pose.trim(),
           expression: requirements.expression.trim(),
           scene: requirements.scene.trim(),
+          background_scene: requirements.scene.trim(),
         },
         shipping_address: {
           name: shipping.name.trim(),
+          recipient_name: shipping.name.trim(),
           phone: shipping.phone.trim(),
           address: shipping.address.trim(),
         },
