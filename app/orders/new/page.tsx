@@ -193,7 +193,7 @@ function NewOrderPageContent() {
 
       const payload = {
         user_id: normalizedUserId,
-        client_id: normalizedUserId,
+        character_name: projectName.trim() || "未命名角色",
         artist_id: normalizedArtistId,
         tier: tier.trim() || "未指定",
         client_name: clientName.trim(),
