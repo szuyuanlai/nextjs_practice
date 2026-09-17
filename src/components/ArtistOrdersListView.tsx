@@ -203,7 +203,8 @@ export default function ArtistOrdersListView() {
   const [activeTab, setActiveTab] = useState<OrdersTab>("pending");
   const [uploadingOrderId, setUploadingOrderId] = useState<string | null>(null);
   const [deliveryFilesByOrderId, setDeliveryFilesByOrderId] = useState<Record<string, File[]>>({});
-  const [characterDeliveryFilesByOrderId, setCharacterDeliveryFilesByOrderId] = useState<Record<string, File[]>>({});
+  const [characterSheetFilesByOrderId, setCharacterSheetFilesByOrderId] = useState<Record<string, File[]>>({});
+  const [characterIconFilesByOrderId, setCharacterIconFilesByOrderId] = useState<Record<string, File[]>>({});
   const [toast, setToast] = useState<Toast | null>(null);
 
   useEffect(() => {
@@ -442,17 +443,26 @@ export default function ArtistOrdersListView() {
     }));
   };
 
-  const setCharacterFilesForOrder = (orderId: string, files: File[]) => {
-    setCharacterDeliveryFilesByOrderId((current) => ({
+  const setCharacterSheetFilesForOrder = (orderId: string, files: File[]) => {
+    setCharacterSheetFilesByOrderId((current) => ({
       ...current,
-      [orderId]: files,
+      [orderId]: files.slice(0, 1),
+    }));
+  };
+
+  const setCharacterIconFilesForOrder = (orderId: string, files: File[]) => {
+    setCharacterIconFilesByOrderId((current) => ({
+      ...current,
+      [orderId]: files.slice(0, 1),
     }));
   };
 
   const handleUploadCharacterDelivery = async (order: EnrichedCharacterOrder) => {
-    const files = characterDeliveryFilesByOrderId[order.id] ?? [];
-    if (!files[0]) {
-      setToast({ kind: "error", message: "請先選擇至少一張交付圖片。" });
+    const sheetFile = (characterSheetFilesByOrderId[order.id] ?? [])[0] ?? null;
+    const iconFile = (characterIconFilesByOrderId[order.id] ?? [])[0] ?? null;
+
+    if (!sheetFile || !iconFile) {
+      setToast({ kind: "error", message: "請先完成角色三視圖與角色頭像兩個檔案選擇。" });
       return;
     }
 
@@ -476,21 +486,34 @@ export default function ArtistOrdersListView() {
     setUploadingOrderId(order.id);
 
     try {
-      const uploadedUrls: string[] = [];
+      console.log("[ArtistOrders] start character delivery", { orderId: order.id, artistId: user.id });
 
-      for (let index = 0; index < files.length; index += 1) {
-        const file = files[index];
-        const path = `${user.id}/${order.id}/character-delivery-${Date.now()}-${index}-${file.name}`;
-        const { publicUrl } = await uploadFileToBucket(supabase, CHARACTER_DELIVERY_BUCKETS, file, path);
-        uploadedUrls.push(publicUrl);
-      }
+      const sheetPath = `${user.id}/${order.id}/character-sheet-${Date.now()}-${sheetFile.name}`;
+      const iconPath = `${user.id}/${order.id}/character-icon-${Date.now()}-${iconFile.name}`;
+
+      const { publicUrl: characterSheetUrl } = await uploadFileToBucket(
+        supabase,
+        CHARACTER_DELIVERY_BUCKETS,
+        sheetFile,
+        sheetPath,
+      );
+      const { publicUrl: characterIconUrl } = await uploadFileToBucket(
+        supabase,
+        CHARACTER_DELIVERY_BUCKETS,
+        iconFile,
+        iconPath,
+      );
+
+      console.log("[ArtistOrders] upload success", {
+        orderId: order.id,
+        characterSheetUrl,
+        characterIconUrl,
+      });
 
       const existingImageUrls = parseStringArray(order.image_urls ?? []);
       const existingDeliveryUrls = parseStringArray(order.appearance_details?.delivery_asset_urls);
-      const nextDeliveryUrls = uniqueStrings([...existingDeliveryUrls, ...uploadedUrls]);
-      const nextImageUrls = uniqueStrings([...existingImageUrls, ...uploadedUrls]);
-      const nextCharacterIconUrl = order.character_icon_url?.trim() || uploadedUrls[0] || null;
-      const nextCharacterSheetUrl = order.character_sheet_url?.trim() || uploadedUrls[1] || uploadedUrls[0] || null;
+      const nextDeliveryUrls = uniqueStrings([...existingDeliveryUrls, characterSheetUrl, characterIconUrl]);
+      const nextImageUrls = uniqueStrings([...existingImageUrls, characterSheetUrl, characterIconUrl]);
       const nextAppearance = {
         ...(order.appearance_details ?? {}),
         delivery_asset_urls: nextDeliveryUrls,
@@ -498,43 +521,66 @@ export default function ArtistOrdersListView() {
         completed_by_artist_id: user.id,
       };
 
-      const { error: characterUpdateError } = await supabase
+      const { data: characterUpdateRows, error: characterUpdateError } = await supabase
         .from("characters")
         .update({
           status: "completed",
-          character_icon_url: nextCharacterIconUrl,
-          character_sheet_url: nextCharacterSheetUrl,
+          character_icon_url: characterIconUrl,
+          character_sheet_url: characterSheetUrl,
           image_urls: nextImageUrls,
           appearance_details: nextAppearance,
         })
         .eq("id", order.id)
-        .eq("artist_id", user.id);
+        .eq("artist_id", user.id)
+        .select("id,status,character_sheet_url,character_icon_url");
 
       if (characterUpdateError) {
         throw characterUpdateError;
       }
 
+      console.log("[ArtistOrders] characters update success", {
+        orderId: order.id,
+        rows: characterUpdateRows,
+      });
+
       // Sync related order rows so customer order timelines are consistent.
-      await supabase
+      const { data: orderUpdateRows, error: orderUpdateError } = await supabase
         .from("orders")
         .update({
           status: "completed",
         })
         .eq("character_id", order.id)
         .eq("artist_id", user.id)
-        .is("merch_type", null);
+        .is("merch_type", null)
+        .select("id,status");
 
-      setCharacterDeliveryFilesByOrderId((current) => ({
+      if (orderUpdateError) {
+        throw orderUpdateError;
+      }
+
+      console.log("[ArtistOrders] orders update success", {
+        orderId: order.id,
+        rows: orderUpdateRows,
+      });
+
+      setCharacterSheetFilesByOrderId((current) => ({
+        ...current,
+        [order.id]: [],
+      }));
+      setCharacterIconFilesByOrderId((current) => ({
         ...current,
         [order.id]: [],
       }));
       setToast({ kind: "success", message: "角色交付成功，狀態已更新為已完成。" });
       await refreshOrders();
+      router.refresh();
     } catch (error) {
+      console.error("Delivery update failed:", error);
       setToast({
         kind: "error",
         message: error instanceof Error ? error.message : "角色交付失敗，請稍後再試。",
       });
+      window.alert("交付更新失敗，請稍後再試或檢查 Supabase 權限設定。");
     } finally {
       setUploadingOrderId(null);
     }
@@ -765,27 +811,53 @@ export default function ArtistOrdersListView() {
                           </div>
                         ) : (
                           <div className="rounded-2xl border border-amber-200 bg-amber-50 p-3">
-                            <div className="mb-2 flex items-center gap-2 text-xs font-semibold text-amber-700">
+                            <div className="mb-3 flex items-center gap-2 text-xs font-semibold text-amber-700">
                               <UploadCloud className="h-4 w-4" />
-                              上傳角色交付圖片
+                              角色交付上傳
                             </div>
-                            <FileUploadField
-                              id={`artist-character-delivery-${order.characterOrder.id}`}
-                              accept="image/*"
-                              multiple
-                              files={characterDeliveryFilesByOrderId[order.characterOrder.id] ?? []}
-                              onFilesChange={(files) => setCharacterFilesForOrder(order.characterOrder.id, files)}
-                              buttonText="選擇交付圖片"
-                              emptyText="尚未選擇任何檔案"
-                              className="text-slate-700"
-                            />
+
+                            <div className="mb-3 rounded-xl border border-emerald-200 bg-white p-3">
+                              <p className="mb-2 text-xs font-semibold text-slate-700">角色三視圖 (character_sheet_url)</p>
+                              <FileUploadField
+                                id={`artist-character-sheet-delivery-${order.characterOrder.id}`}
+                                accept="image/*"
+                                files={characterSheetFilesByOrderId[order.characterOrder.id] ?? []}
+                                onFilesChange={(files) => setCharacterSheetFilesForOrder(order.characterOrder.id, files)}
+                                buttonText="上傳角色三視圖"
+                                emptyText="尚未選擇角色三視圖"
+                                className="text-slate-700"
+                              />
+                            </div>
+
+                            <div className="mb-3 rounded-xl border border-emerald-200 bg-white p-3">
+                              <p className="mb-2 text-xs font-semibold text-slate-700">角色頭像 (character_icon_url)</p>
+                              <FileUploadField
+                                id={`artist-character-icon-delivery-${order.characterOrder.id}`}
+                                accept="image/*"
+                                files={characterIconFilesByOrderId[order.characterOrder.id] ?? []}
+                                onFilesChange={(files) => setCharacterIconFilesForOrder(order.characterOrder.id, files)}
+                                buttonText="上傳角色頭像"
+                                emptyText="尚未選擇角色頭像"
+                                className="text-slate-700"
+                              />
+                            </div>
+
+                            {!(characterSheetFilesByOrderId[order.characterOrder.id]?.[0] && characterIconFilesByOrderId[order.characterOrder.id]?.[0]) ? (
+                              <p className="mb-2 text-[11px] font-semibold text-amber-700">
+                                請先完成兩個檔案上傳：角色三視圖 + 角色頭像，才可確認交付。
+                              </p>
+                            ) : null}
+
                             <button
                               type="button"
                               onClick={() => void handleUploadCharacterDelivery(order.characterOrder)}
-                              disabled={uploadingOrderId === order.characterOrder.id}
-                              className="mt-3 inline-flex w-full items-center justify-center rounded-xl bg-emerald-600 px-3 py-2 text-xs font-semibold text-white transition hover:bg-emerald-700 disabled:cursor-not-allowed disabled:bg-slate-300"
+                              disabled={
+                                uploadingOrderId === order.characterOrder.id ||
+                                !(characterSheetFilesByOrderId[order.characterOrder.id]?.[0] && characterIconFilesByOrderId[order.characterOrder.id]?.[0])
+                              }
+                              className="mt-3 inline-flex w-full items-center justify-center rounded-2xl bg-gradient-to-r from-emerald-500 via-green-500 to-teal-500 px-4 py-2.5 text-sm font-semibold text-white shadow-sm transition hover:from-emerald-600 hover:via-green-600 hover:to-teal-600 disabled:cursor-not-allowed disabled:bg-slate-300 disabled:bg-none"
                             >
-                              {uploadingOrderId === order.characterOrder.id ? "上傳中..." : "上傳並標記為已完成"}
+                              {uploadingOrderId === order.characterOrder.id ? "交付上傳中..." : "確認交付"}
                             </button>
                           </div>
                         )}
