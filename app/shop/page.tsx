@@ -276,9 +276,6 @@ export default function ShopPage() {
       const payload = {
         user_id: normalizedUserId,
         character_id: normalizedCharacterId,
-        // 1. 新增角色名稱（若沒選角色則帶入預設值防呆）
-        character_name: selectedCharacter?.character_name || "未命名角色",
-        artist_id: normalizedArtistId,
         merch_type: selectedMerch,
         requirements: {
           pose: requirements.pose.trim(),
@@ -291,7 +288,6 @@ export default function ShopPage() {
           address: shipping.address.trim(),
         },
         status: "pending",
-        // 2. 舊的 client_id 已刪除
       };
 
       const { data, error } = await supabase.from("orders").insert([payload]).select().single();
