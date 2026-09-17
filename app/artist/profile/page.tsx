@@ -165,10 +165,8 @@ export default function ArtistProfilePage() {
         bucketName: AVATAR_BUCKET,
         path,
         error: upErr,
+        name: upErr.name,
         message: upErr.message,
-        details: upErr.details,
-        hint: upErr.hint,
-        code: upErr.code,
       });
       setUploading(false);
       return;
@@ -214,10 +212,8 @@ export default function ArtistProfilePage() {
         bucketName: ARTIST_BANNER_BUCKET,
         path,
         error: upErr,
+        name: upErr.name,
         message: upErr.message,
-        details: upErr.details,
-        hint: upErr.hint,
-        code: upErr.code,
       });
       setUploading(false);
       return;
@@ -290,10 +286,8 @@ export default function ArtistProfilePage() {
           bucketName: PORTFOLIO_BUCKET,
           path,
           error: upErr,
+          name: upErr.name,
           message: upErr.message,
-          details: upErr.details,
-          hint: upErr.hint,
-          code: upErr.code,
         });
         continue;
       }
