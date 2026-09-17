@@ -38,7 +38,7 @@ export default function MyAssetsPage() {
       const { data, error: fetchError } = await supabase
         .from("orders")
         .select("*")
-        .eq("client_id", user.id)
+        .eq("user_id", user.id)
         .order("created_at", { ascending: false });
 
       const orderRows = (data as Order[] | null) ?? [];
@@ -88,7 +88,7 @@ export default function MyAssetsPage() {
               <div key={o.id} className="border rounded overflow-hidden">
                 <div className="p-3">
                   <div className="text-sm font-medium mb-2">訂單 {o.id}</div>
-                  <div className="text-sm text-slate-600 mb-2">方案：{o.tier}</div>
+                  <div className="text-sm text-slate-600 mb-2">方案：{o.merch_type ?? "未指定"}</div>
 
                   <div className="grid grid-cols-2 gap-2 mb-3">
                     {(o.assets ?? []).map((a, i) => (
@@ -121,7 +121,7 @@ export default function MyAssetsPage() {
               <div className="flex items-center justify-between">
                 <div>
                   <div className="font-medium">訂單 {o.id}</div>
-                  <div className="text-sm text-slate-600">方案：{o.tier} • 建立於 {new Date(o.created_at ?? "").toLocaleString()}</div>
+                  <div className="text-sm text-slate-600">方案：{o.merch_type ?? "未指定"} • 建立於 {new Date(o.created_at ?? "").toLocaleString()}</div>
                 </div>
                 <OrderStepper status={o.status ?? "draft"} />
               </div>

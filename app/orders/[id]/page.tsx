@@ -12,23 +12,18 @@ type OrderRow = {
   id: string;
   user_id: string;
   character_id?: string | null;
-  character_name: string;
-  personality: string;
-  appearance_description: string;
-  body_size: string;
-  hair_color: string;
-  eye_color: string;
-  notes: string | null;
+  merch_type?: string | null;
+  requirements?: Record<string, unknown> | null;
+  shipping_address?: Record<string, unknown> | null;
+  delivery_file_url?: string | null;
   status: OrderStatus;
   created_at: string;
-  attachment_url: string | null;
-  attachment_name: string | null;
 };
 
 type CharacterRow = {
   id: string;
-  name: string;
-  gender: string | null;
+  character_name: string;
+  character_gender: string | null;
   personality_tags: string[] | null;
   bio: string | null;
   hairstyle: string | null;
@@ -37,10 +32,12 @@ type CharacterRow = {
   eye_color: string | null;
   height_body_type: string | null;
   bust_size: string | null;
+  theme_color: string | null;
   outfit_accessories: string | null;
   additional_notes: string | null;
   selected_artist_name: string | null;
-  appearance_details: Record<string, unknown> | null;
+  reference_image_urls: string[] | null;
+  is_anonymous: boolean | null;
   created_at: string;
 };
 
@@ -102,15 +99,14 @@ export default function OrderDetailPage({ params }: Props) {
       const characterQuery = orderData.character_id
         ? supabase
             .from("characters")
-            .select("id,name,gender,personality_tags,bio,hairstyle,hair_color,eye_style,eye_color,height_body_type,bust_size,outfit_accessories,additional_notes,selected_artist_name,appearance_details,created_at")
+            .select("id,character_name,character_gender,personality_tags,bio,hairstyle,hair_color,eye_style,eye_color,height_body_type,bust_size,theme_color,outfit_accessories,additional_notes,selected_artist_name,reference_image_urls,is_anonymous,created_at")
             .eq("id", orderData.character_id)
             .eq("user_id", authData.user.id)
             .maybeSingle()
         : supabase
             .from("characters")
-            .select("id,name,gender,personality_tags,bio,hairstyle,hair_color,eye_style,eye_color,height_body_type,bust_size,outfit_accessories,additional_notes,selected_artist_name,appearance_details,created_at")
+            .select("id,character_name,character_gender,personality_tags,bio,hairstyle,hair_color,eye_style,eye_color,height_body_type,bust_size,theme_color,outfit_accessories,additional_notes,selected_artist_name,reference_image_urls,is_anonymous,created_at")
             .eq("user_id", authData.user.id)
-            .eq("name", orderData.character_name)
             .order("created_at", { ascending: false })
             .limit(1)
             .maybeSingle();
@@ -130,26 +126,20 @@ export default function OrderDetailPage({ params }: Props) {
     return statusMap[order.status] ?? statusMap.pending;
   }, [order]);
 
-  const readAppearance = (key: string) => {
-    const value = character?.appearance_details?.[key];
-    return typeof value === "string" && value.trim().length > 0 ? value : "";
-  };
-
-  const displayName = character?.name || order?.character_name || "未命名角色";
-  const displayGender = character?.gender || "未設定";
-  const displayBodyType = character?.height_body_type || order?.body_size || readAppearance("height_body_type") || "未設定";
-  const displayHairColor = character?.hair_color || order?.hair_color || readAppearance("hair_color") || "未設定";
-  const displayEyeColor = character?.eye_color || order?.eye_color || readAppearance("eye_color") || "未設定";
+  const displayName = character?.character_name || "未命名角色";
+  const displayGender = character?.character_gender || "未設定";
+  const displayBodyType = character?.height_body_type || "未設定";
+  const displayHairColor = character?.hair_color || "未設定";
+  const displayEyeColor = character?.eye_color || "未設定";
   const displayPersonality =
     character?.personality_tags && character.personality_tags.length > 0
       ? character.personality_tags.join("、")
-      : order?.personality || "未設定";
-  const displayAppearanceDescription = order?.appearance_description || character?.outfit_accessories || readAppearance("outfit_accessories") || "未填寫";
-  const displayOutfitStyle = character?.outfit_accessories || readAppearance("outfit_accessories") || "未填寫";
+      : "未設定";
+  const displayAppearanceDescription = character?.outfit_accessories || "未填寫";
+  const displayOutfitStyle = character?.outfit_accessories || "未填寫";
   const displayBackstory = character?.bio || "未填寫";
-  const displayArtistName =
-    character?.selected_artist_name || readAppearance("selected_artist_name") || "尚未指派";
-  const displayNotes = order?.notes || character?.additional_notes || readAppearance("additional_notes") || "無";
+  const displayArtistName = character?.selected_artist_name || "尚未指派";
+  const displayNotes = character?.additional_notes || "無";
   const displayCreatedAt = order?.created_at || character?.created_at || "";
 
   return (
@@ -181,7 +171,7 @@ export default function OrderDetailPage({ params }: Props) {
                 <p className="text-xs uppercase tracking-[0.2em] text-slate-500">訂單詳情</p>
                 <h1 className="mt-2 text-3xl font-black tracking-tight text-slate-900">{displayName}</h1>
                 <p className="mt-2 text-sm text-slate-500">建立時間：{displayCreatedAt ? new Date(displayCreatedAt).toLocaleString("zh-TW") : "-"}</p>
-                <p className="mt-1 text-sm text-slate-500">執筆繪師：{displayArtistName}</p>
+                <p className="mt-1 text-sm text-slate-500">繪師：{displayArtistName}</p>
               </div>
               {statusConfig ? (
                 <span className={`inline-flex items-center rounded-full border px-3 py-1.5 text-sm font-semibold ${statusConfig.color}`}>
@@ -250,15 +240,15 @@ export default function OrderDetailPage({ params }: Props) {
                   </div>
                 </div>
 
-                {order.attachment_url ? (
+                {order.delivery_file_url ? (
                   <a
-                    href={order.attachment_url}
+                    href={order.delivery_file_url}
                     target="_blank"
                     rel="noreferrer"
                     className="mt-5 inline-flex items-center gap-2 rounded-xl border border-sky-200 bg-sky-50 px-3 py-2 text-sm font-semibold text-sky-700 transition hover:bg-sky-100"
                   >
                     <FileText className="h-4 w-4" />
-                    {order.attachment_name ?? "查看附件"}
+                    查看附件
                   </a>
                 ) : null}
 
@@ -266,6 +256,18 @@ export default function OrderDetailPage({ params }: Props) {
                   <div className="mt-5 inline-flex items-center gap-2 rounded-full border border-sky-200 bg-sky-50 px-3 py-1 text-xs font-semibold text-sky-700">
                     <Sparkles className="h-3.5 w-3.5" />
                     已同步角色資料欄位
+                  </div>
+                ) : null}
+                {order.requirements ? (
+                  <div className="mt-4 rounded-2xl border border-sky-100 bg-white p-4 text-sm text-slate-700">
+                    <p className="text-xs uppercase tracking-[0.18em] text-slate-500">周邊需求</p>
+                    <p className="mt-2 whitespace-pre-wrap leading-7">{typeof order.requirements === "string" ? order.requirements : JSON.stringify(order.requirements, null, 2)}</p>
+                  </div>
+                ) : null}
+                {order.shipping_address ? (
+                  <div className="mt-4 rounded-2xl border border-sky-100 bg-white p-4 text-sm text-slate-700">
+                    <p className="text-xs uppercase tracking-[0.18em] text-slate-500">寄送地址</p>
+                    <p className="mt-2 whitespace-pre-wrap leading-7">{typeof order.shipping_address === "string" ? order.shipping_address : JSON.stringify(order.shipping_address, null, 2)}</p>
                   </div>
                 ) : null}
               </article>

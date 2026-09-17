@@ -9,8 +9,8 @@ import { getSupabaseClient } from "@/src/lib/supabase/client";
 type CharacterOrderRow = {
   id: string;
   user_id: string;
-  artist_id: string | null;
-  name: string;
+  character_name: string;
+  character_gender?: string | null;
   status: string | null;
   personality_tags?: string[] | null;
   bio?: string | null;
@@ -20,17 +20,18 @@ type CharacterOrderRow = {
   eye_color?: string | null;
   height_body_type?: string | null;
   bust_size?: string | null;
+  theme_color?: string | null;
   outfit_accessories?: string | null;
   additional_notes?: string | null;
-  appearance_details?: Record<string, unknown> | null;
+  selected_artist_name?: string | null;
+  reference_image_urls?: string[] | null;
+  is_anonymous?: boolean | null;
   created_at: string;
 };
 
 type MerchandiseOrderRow = {
   id: string;
   user_id?: string | null;
-  client_id?: string | null;
-  artist_id?: string | null;
   character_id?: string | null;
   merch_type?: string | null;
   requirements?: Record<string, unknown> | null;
@@ -49,8 +50,7 @@ type ArtistProfile = {
 
 type CharacterOption = {
   id: string;
-  name: string;
-  artist_id?: string | null;
+  character_name: string;
 };
 
 type UnifiedOrderCard =
@@ -142,23 +142,23 @@ export default function OrdersPage() {
       const [characterRes, merchByUserRes, merchByClientRes, artistRes, characterBasicRes] = await Promise.all([
         supabase
           .from("characters")
-          .select("id,user_id,artist_id,name,status,personality_tags,bio,hairstyle,hair_color,eye_style,eye_color,height_body_type,bust_size,outfit_accessories,additional_notes,appearance_details,created_at")
+          .select("id,user_id,character_name,character_gender,status,personality_tags,bio,hairstyle,hair_color,eye_style,eye_color,height_body_type,bust_size,theme_color,outfit_accessories,additional_notes,selected_artist_name,reference_image_urls,is_anonymous,created_at")
           .eq("user_id", userId)
           .order("created_at", { ascending: false }),
         supabase
           .from("orders")
-          .select("id,user_id,client_id,artist_id,character_id,merch_type,requirements,shipping_address,delivery_file_url,status,created_at")
+          .select("id,user_id,character_id,merch_type,requirements,shipping_address,delivery_file_url,status,created_at")
           .eq("user_id", userId)
           .not("merch_type", "is", null)
           .order("created_at", { ascending: false }),
         supabase
           .from("orders")
-          .select("id,user_id,client_id,artist_id,character_id,merch_type,requirements,shipping_address,delivery_file_url,status,created_at")
-          .eq("client_id", userId)
+          .select("id,user_id,character_id,merch_type,requirements,shipping_address,delivery_file_url,status,created_at")
+          .eq("user_id", userId)
           .not("merch_type", "is", null)
           .order("created_at", { ascending: false }),
         supabase.from("profiles").select("id,full_name,display_name,avatar_url"),
-        supabase.from("characters").select("id,name,artist_id").eq("user_id", userId),
+        supabase.from("characters").select("id,character_name").eq("user_id", userId),
       ]);
 
       if (cancelled) return;
@@ -187,7 +187,7 @@ export default function OrdersPage() {
         id: character.id,
         createdAt: character.created_at,
         status: character.status,
-        artist: character.artist_id ? artistMap.get(character.artist_id) ?? null : null,
+        artist: null,
         character,
       }));
 
@@ -202,7 +202,7 @@ export default function OrdersPage() {
         id: merchOrder.id,
         createdAt: merchOrder.created_at,
         status: merchOrder.status ?? null,
-        artist: merchOrder.artist_id ? artistMap.get(merchOrder.artist_id) ?? null : null,
+        artist: null,
         character: merchOrder.character_id ? characterBasicMap.get(merchOrder.character_id) ?? null : null,
         merchOrder,
       }));
@@ -292,20 +292,20 @@ export default function OrdersPage() {
                       <div className="space-y-4">
                         <div>
                           <p className="text-xs uppercase tracking-[0.2em] text-slate-500">角色名稱</p>
-                          <p className="mt-2 font-semibold text-slate-800">{card.character.name}</p>
+                          <p className="mt-2 font-semibold text-slate-800">{card.character.character_name}</p>
                         </div>
                         <div>
                           <p className="text-xs uppercase tracking-[0.2em] text-slate-500">角色完整 DNA / 外觀特徵</p>
                           <dl className="mt-2 grid gap-2 text-sm text-slate-700">
-                            <div>髮型：{normalizeText(card.character.hairstyle || card.character.appearance_details?.hairstyle)}</div>
-                            <div>髮色：{normalizeText(card.character.hair_color || card.character.appearance_details?.hair_color)}</div>
-                            <div>眼睛風格：{normalizeText(card.character.eye_style || card.character.appearance_details?.eye_style)}</div>
-                            <div>眼色：{normalizeText(card.character.eye_color || card.character.appearance_details?.eye_color)}</div>
-                            <div>服裝風格：{normalizeText(card.character.outfit_accessories || card.character.appearance_details?.outfit_accessories)}</div>
-                            <div>身高體型：{normalizeText(card.character.height_body_type || card.character.appearance_details?.height_body_type)}</div>
-                            <div>個性：{(card.character.personality_tags ?? []).join("、") || normalizeText(card.character.appearance_details?.personality_text)}</div>
-                            <div>個性背景：{normalizeText(card.character.bio || card.character.appearance_details?.background_story)}</div>
-                            <div>額外需求：{normalizeText(card.character.additional_notes || card.character.appearance_details?.additional_notes)}</div>
+                            <div>髮型：{normalizeText(card.character.hairstyle)}</div>
+                            <div>髮色：{normalizeText(card.character.hair_color)}</div>
+                            <div>眼睛風格：{normalizeText(card.character.eye_style)}</div>
+                            <div>眼色：{normalizeText(card.character.eye_color)}</div>
+                            <div>服裝風格：{normalizeText(card.character.outfit_accessories)}</div>
+                            <div>身高體型：{normalizeText(card.character.height_body_type)}</div>
+                            <div>個性：{(card.character.personality_tags ?? []).join("、") || "未設定"}</div>
+                            <div>個性背景：{normalizeText(card.character.bio)}</div>
+                            <div>額外需求：{normalizeText(card.character.additional_notes)}</div>
                           </dl>
                         </div>
                       </div>
@@ -341,15 +341,13 @@ export default function OrdersPage() {
                         </div>
                         <div>
                           <p className="text-xs uppercase tracking-[0.2em] text-slate-500">綁定角色資訊</p>
-                          <p className="mt-2 text-slate-700">{card.character?.name ?? "未綁定角色"}</p>
+                          <p className="mt-2 text-slate-700">{card.character?.character_name ?? "未綁定角色"}</p>
                         </div>
                         <div>
-                          <p className="text-xs uppercase tracking-[0.2em] text-slate-500">客戶需求詳情 (requirements)</p>
-                          <dl className="mt-2 grid gap-2 text-sm text-slate-700">
-                            <div>姿勢描述：{normalizeText(card.merchOrder.requirements?.pose)}</div>
-                            <div>表情描述：{normalizeText(card.merchOrder.requirements?.expression)}</div>
-                            <div>場景背景：{normalizeText(card.merchOrder.requirements?.scene)}</div>
-                          </dl>
+                          <p className="text-xs uppercase tracking-[0.2em] text-slate-500">客戶需求詳情</p>
+                          <p className="mt-2 text-sm text-slate-700">
+                            {card.merchOrder.requirements ? JSON.stringify(card.merchOrder.requirements) : "未填寫需求"}
+                          </p>
                         </div>
                       </div>
 
@@ -370,12 +368,10 @@ export default function OrdersPage() {
                           </div>
                         </div>
                         <div>
-                          <p className="text-xs uppercase tracking-[0.2em] text-slate-500">寄送地址 (shipping_address)</p>
-                          <dl className="mt-2 grid gap-1 text-sm text-slate-700">
-                            <div>收件人：{normalizeText(card.merchOrder.shipping_address?.name)}</div>
-                            <div>電話：{normalizeText(card.merchOrder.shipping_address?.phone)}</div>
-                            <div>地址：{normalizeText(card.merchOrder.shipping_address?.address)}</div>
-                          </dl>
+                          <p className="text-xs uppercase tracking-[0.2em] text-slate-500">寄送地址</p>
+                          <p className="mt-2 text-sm text-slate-700">
+                            {card.merchOrder.shipping_address ? JSON.stringify(card.merchOrder.shipping_address) : "未填寫地址"}
+                          </p>
                         </div>
                         <div>
                           <p className="text-xs uppercase tracking-[0.2em] text-slate-500">建立時間</p>
