@@ -180,6 +180,7 @@ function NewOrderPageContent() {
       }
 
       const payload = {
+        user_id: user.id,
         client_id: user.id,
         artist_id: artistId || null,
         tier: tier.trim() || "未指定",

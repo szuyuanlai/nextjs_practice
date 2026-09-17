@@ -33,6 +33,25 @@ const normalizeRole = (value: unknown) => {
   return value.trim().toUpperCase();
 };
 
+function extractStoragePathFromPublicUrl(url: string | null | undefined) {
+  if (!url) return null;
+
+  const marker = "/object/public/";
+  const markerIndex = url.indexOf(marker);
+  if (markerIndex === -1) {
+    return null;
+  }
+
+  const rawPath = url.slice(markerIndex + marker.length);
+  const slashIndex = rawPath.indexOf("/");
+  if (slashIndex === -1) {
+    return null;
+  }
+
+  const objectPath = rawPath.slice(slashIndex + 1);
+  return objectPath || null;
+}
+
 export default function ArtistDashboardPage() {
   const router = useRouter();
   const [loading, setLoading] = useState(true);
@@ -376,9 +395,11 @@ export default function ArtistDashboardPage() {
         throw new Error(error.message);
       }
 
-      if (item.storage_path) {
-        await client.storage.from("portfolios").remove([item.storage_path]).catch(() => {
-          void client.storage.from("artist-assets").remove([item.storage_path!]).catch(() => undefined);
+      const storagePath = item.storage_path ?? extractStoragePathFromPublicUrl(item.image_url);
+
+      if (storagePath) {
+        await client.storage.from("portfolios").remove([storagePath]).catch(() => {
+          void client.storage.from("artist-assets").remove([storagePath]).catch(() => undefined);
         });
       }
 
@@ -651,7 +672,7 @@ export default function ArtistDashboardPage() {
                               className="flex w-full items-center gap-2 rounded-xl px-3 py-2 text-left text-sm font-medium text-slate-700 transition hover:bg-sky-50"
                             >
                               <Edit3 className="h-4 w-4" />
-                              編輯作品名稱
+                              修改作品名稱
                             </button>
                             <button
                               type="button"
@@ -667,7 +688,7 @@ export default function ArtistDashboardPage() {
                               className="flex w-full items-center gap-2 rounded-xl px-3 py-2 text-left text-sm font-medium text-rose-600 transition hover:bg-rose-50"
                             >
                               <Trash2 className="h-4 w-4" />
-                              刪除作品
+                              刪除
                             </button>
                           </div>
                         ) : null}

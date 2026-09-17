@@ -3,19 +3,29 @@
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useEffect, useMemo, useState } from "react";
-import { ArrowLeft, ClipboardList, Loader2, ShieldAlert } from "lucide-react";
+import { ArrowLeft, CheckCircle2, ClipboardList, Loader2, ShieldAlert, UploadCloud } from "lucide-react";
+import FileUploadField from "@/src/components/FileUploadField";
+import { uploadFileToBucket } from "@/src/lib/artist-data";
 import { getSupabaseClient } from "@/src/lib/supabase/client";
-
-type CharacterStatus = "draft" | "in_progress" | "completed" | string;
 
 type CharacterOrderRow = {
   id: string;
   user_id: string;
   artist_id: string | null;
   name: string;
-  status: CharacterStatus | null;
+  status: string | null;
   created_at: string;
   is_anonymous?: boolean | null;
+  personality_tags?: string[] | null;
+  bio?: string | null;
+  hairstyle?: string | null;
+  hair_color?: string | null;
+  eye_style?: string | null;
+  eye_color?: string | null;
+  height_body_type?: string | null;
+  bust_size?: string | null;
+  outfit_accessories?: string | null;
+  additional_notes?: string | null;
   appearance_details?: Record<string, unknown> | null;
   client?:
     | {
@@ -33,7 +43,62 @@ type EnrichedCharacterOrder = CharacterOrderRow & {
   clientName: string;
 };
 
+type MerchandiseOrderRow = {
+  id: string;
+  user_id?: string | null;
+  client_id?: string | null;
+  artist_id?: string | null;
+  character_id?: string | null;
+  merch_type?: string | null;
+  requirements?: Record<string, unknown> | null;
+  shipping_address?: Record<string, unknown> | null;
+  delivery_file_url?: string | null;
+  status?: string | null;
+  created_at: string;
+};
+
+type ProfileRow = {
+  id: string;
+  display_name?: string | null;
+  full_name?: string | null;
+  avatar_url?: string | null;
+};
+
+type CharacterBasic = {
+  id: string;
+  name: string;
+};
+
+type EnrichedMerchOrder = MerchandiseOrderRow & {
+  clientName: string;
+  clientAvatarUrl?: string | null;
+  characterName: string;
+};
+
+type OrderCard =
+  | {
+      kind: "character";
+      id: string;
+      createdAt: string;
+      status: string | null;
+      characterOrder: EnrichedCharacterOrder;
+    }
+  | {
+      kind: "merch";
+      id: string;
+      createdAt: string;
+      status: string | null;
+      merchOrder: EnrichedMerchOrder;
+    };
+
 type OrdersTab = "pending" | "completed";
+
+type Toast = {
+  kind: "success" | "error";
+  message: string;
+};
+
+const MERCH_DELIVERY_BUCKETS = ["merch-deliveries", "completed-assets", "artist-assets"] as const;
 
 function formatDateTime(iso: string) {
   const date = new Date(iso);
@@ -106,12 +171,30 @@ function getClientName(row: CharacterOrderRow) {
   return `委託人 #${row.user_id.slice(0, 6)}`;
 }
 
+function normalizeText(value: unknown, fallback = "未填寫") {
+  if (typeof value === "string" && value.trim()) {
+    return value.trim();
+  }
+  return fallback;
+}
+
 export default function ArtistOrdersListView() {
   const router = useRouter();
-  const [orders, setOrders] = useState<EnrichedCharacterOrder[]>([]);
+  const [characterOrders, setCharacterOrders] = useState<EnrichedCharacterOrder[]>([]);
+  const [merchOrders, setMerchOrders] = useState<EnrichedMerchOrder[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
   const [activeTab, setActiveTab] = useState<OrdersTab>("pending");
+  const [uploadingOrderId, setUploadingOrderId] = useState<string | null>(null);
+  const [deliveryFilesByOrderId, setDeliveryFilesByOrderId] = useState<Record<string, File[]>>({});
+  const [toast, setToast] = useState<Toast | null>(null);
+
+  useEffect(() => {
+    if (!toast) return;
+
+    const timer = window.setTimeout(() => setToast(null), 3000);
+    return () => window.clearTimeout(timer);
+  }, [toast]);
 
   useEffect(() => {
     let cancelled = false;
@@ -143,36 +226,76 @@ export default function ArtistOrdersListView() {
 
       console.log("Current user ID:", user?.id);
 
-      const { data, error } = await supabase
-        .from("characters")
-        .select("id,user_id,artist_id,name,status,created_at,appearance_details,client:profiles!characters_user_id_fkey(display_name,full_name)")
-        .eq("artist_id", user.id)
-        .order("created_at", { ascending: false });
+      const [charactersRes, merchRes, profilesRes, charactersBasicRes] = await Promise.all([
+        supabase
+          .from("characters")
+          .select(
+            "id,user_id,artist_id,name,status,created_at,is_anonymous,personality_tags,bio,hairstyle,hair_color,eye_style,eye_color,height_body_type,bust_size,outfit_accessories,additional_notes,appearance_details,client:profiles!characters_user_id_fkey(display_name,full_name)",
+          )
+          .eq("artist_id", user.id)
+          .order("created_at", { ascending: false }),
+        supabase
+          .from("orders")
+          .select("id,user_id,client_id,artist_id,character_id,merch_type,requirements,shipping_address,delivery_file_url,status,created_at")
+          .eq("artist_id", user.id)
+          .not("merch_type", "is", null)
+          .order("created_at", { ascending: false }),
+        supabase.from("profiles").select("id,display_name,full_name,avatar_url"),
+        supabase.from("characters").select("id,name"),
+      ]);
 
-      console.log("Fetched characters error:", error, data);
+      console.log("Fetched characters error:", charactersRes.error, charactersRes.data);
 
       if (cancelled) {
         return;
       }
 
-      if (error) {
-        setErrorMessage(`讀取委託訂單失敗：${error.message}`);
+      const firstError = charactersRes.error || merchRes.error || profilesRes.error || charactersBasicRes.error;
+
+      if (firstError) {
+        setErrorMessage(`讀取委託訂單失敗：${firstError.message}`);
         setIsLoading(false);
         return;
       }
 
-      const rows = ((data ?? []) as unknown) as CharacterOrderRow[];
+      const rows = ((charactersRes.data ?? []) as unknown) as CharacterOrderRow[];
 
       if (cancelled) {
         return;
       }
 
-      setOrders(
+      const enrichedCharacters =
         rows.map((row) => ({
           ...row,
           clientName: getClientName(row),
-        })),
-      );
+        }));
+
+      const profileMap = new Map<string, ProfileRow>();
+      ((profilesRes.data ?? []) as ProfileRow[]).forEach((profile) => {
+        profileMap.set(profile.id, profile);
+      });
+
+      const characterMap = new Map<string, CharacterBasic>();
+      ((charactersBasicRes.data ?? []) as CharacterBasic[]).forEach((character) => {
+        characterMap.set(character.id, character);
+      });
+
+      const enrichedMerch = ((merchRes.data ?? []) as MerchandiseOrderRow[]).map((row) => {
+        const clientId = row.user_id || row.client_id || "";
+        const client = clientId ? profileMap.get(clientId) : null;
+        const displayName = client?.display_name?.trim() || client?.full_name?.trim() || `委託人 #${clientId.slice(0, 6)}`;
+        const boundCharacter = row.character_id ? characterMap.get(row.character_id) : null;
+
+        return {
+          ...row,
+          clientName: displayName,
+          clientAvatarUrl: client?.avatar_url,
+          characterName: boundCharacter?.name ?? "未綁定角色",
+        };
+      });
+
+      setCharacterOrders(enrichedCharacters);
+      setMerchOrders(enrichedMerch);
       setIsLoading(false);
     };
 
@@ -183,28 +306,203 @@ export default function ArtistOrdersListView() {
     };
   }, [router]);
 
+  const refreshOrders = async () => {
+    const supabase = getSupabaseClient();
+    if (!supabase) return;
+
+    const {
+      data: { user },
+      error,
+    } = await supabase.auth.getUser();
+
+    if (error || !user) {
+      return;
+    }
+
+    const [charactersRes, merchRes, profilesRes, charactersBasicRes] = await Promise.all([
+      supabase
+        .from("characters")
+        .select(
+          "id,user_id,artist_id,name,status,created_at,is_anonymous,personality_tags,bio,hairstyle,hair_color,eye_style,eye_color,height_body_type,bust_size,outfit_accessories,additional_notes,appearance_details,client:profiles!characters_user_id_fkey(display_name,full_name)",
+        )
+        .eq("artist_id", user.id)
+        .order("created_at", { ascending: false }),
+      supabase
+        .from("orders")
+        .select("id,user_id,client_id,artist_id,character_id,merch_type,requirements,shipping_address,delivery_file_url,status,created_at")
+        .eq("artist_id", user.id)
+        .not("merch_type", "is", null)
+        .order("created_at", { ascending: false }),
+      supabase.from("profiles").select("id,display_name,full_name,avatar_url"),
+      supabase.from("characters").select("id,name"),
+    ]);
+
+    const firstError = charactersRes.error || merchRes.error || profilesRes.error || charactersBasicRes.error;
+    if (firstError) {
+      setErrorMessage(`讀取委託訂單失敗：${firstError.message}`);
+      return;
+    }
+
+    const rows = ((charactersRes.data ?? []) as unknown) as CharacterOrderRow[];
+    const enrichedCharacters = rows.map((row) => ({
+      ...row,
+      clientName: getClientName(row),
+    }));
+
+    const profileMap = new Map<string, ProfileRow>();
+    ((profilesRes.data ?? []) as ProfileRow[]).forEach((profile) => {
+      profileMap.set(profile.id, profile);
+    });
+
+    const characterMap = new Map<string, CharacterBasic>();
+    ((charactersBasicRes.data ?? []) as CharacterBasic[]).forEach((character) => {
+      characterMap.set(character.id, character);
+    });
+
+    const enrichedMerch = ((merchRes.data ?? []) as MerchandiseOrderRow[]).map((row) => {
+      const clientId = row.user_id || row.client_id || "";
+      const client = clientId ? profileMap.get(clientId) : null;
+      const displayName = client?.display_name?.trim() || client?.full_name?.trim() || `委託人 #${clientId.slice(0, 6)}`;
+      const boundCharacter = row.character_id ? characterMap.get(row.character_id) : null;
+
+      return {
+        ...row,
+        clientName: displayName,
+        clientAvatarUrl: client?.avatar_url,
+        characterName: boundCharacter?.name ?? "未綁定角色",
+      };
+    });
+
+    setCharacterOrders(enrichedCharacters);
+    setMerchOrders(enrichedMerch);
+  };
+
+  const cards = useMemo<OrderCard[]>(() => {
+    const characterCards: OrderCard[] = characterOrders.map((item) => ({
+      kind: "character",
+      id: item.id,
+      status: item.status,
+      createdAt: item.created_at,
+      characterOrder: item,
+    }));
+
+    const merchCards: OrderCard[] = merchOrders.map((item) => ({
+      kind: "merch",
+      id: item.id,
+      status: item.status ?? null,
+      createdAt: item.created_at,
+      merchOrder: item,
+    }));
+
+    return [...characterCards, ...merchCards].sort(
+      (a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime(),
+    );
+  }, [characterOrders, merchOrders]);
+
   const completedCount = useMemo(
-    () => orders.filter((order) => normalizeStatus(order.status) === "completed").length,
-    [orders],
+    () => cards.filter((order) => normalizeStatus(order.status) === "completed").length,
+    [cards],
   );
 
   const pendingCount = useMemo(
-    () => orders.filter((order) => normalizeStatus(order.status) !== "completed").length,
-    [orders],
+    () => cards.filter((order) => normalizeStatus(order.status) !== "completed").length,
+    [cards],
   );
 
   const filteredOrders = useMemo(
     () =>
-      orders.filter((order) => {
+      cards.filter((order) => {
         const normalized = normalizeStatus(order.status);
         return activeTab === "completed" ? normalized === "completed" : normalized !== "completed";
       }),
-    [activeTab, orders],
+    [activeTab, cards],
   );
+
+  const setFilesForOrder = (orderId: string, files: File[]) => {
+    setDeliveryFilesByOrderId((current) => ({
+      ...current,
+      [orderId]: files,
+    }));
+  };
+
+  const handleUploadMerchDelivery = async (order: EnrichedMerchOrder) => {
+    const files = deliveryFilesByOrderId[order.id] ?? [];
+    if (!files[0]) {
+      setToast({ kind: "error", message: "請先選擇交付檔案。" });
+      return;
+    }
+
+    const supabase = getSupabaseClient();
+    if (!supabase) {
+      setToast({ kind: "error", message: "Supabase 尚未設定。" });
+      return;
+    }
+
+    const {
+      data: { user },
+      error: authError,
+    } = await supabase.auth.getUser();
+
+    if (authError || !user) {
+      setToast({ kind: "error", message: "登入已過期，請重新登入。" });
+      router.replace("/login?redirectTo=%2Fartist%2Forders");
+      return;
+    }
+
+    setUploadingOrderId(order.id);
+
+    try {
+      const file = files[0];
+      const path = `${user.id}/${order.id}/delivery-${Date.now()}-${file.name}`;
+      const { publicUrl } = await uploadFileToBucket(supabase, MERCH_DELIVERY_BUCKETS, file, path);
+
+      const { error } = await supabase
+        .from("orders")
+        .update({
+          delivery_file_url: publicUrl,
+          status: "completed",
+        })
+        .eq("id", order.id)
+        .eq("artist_id", user.id);
+
+      if (error) {
+        throw error;
+      }
+
+      setToast({ kind: "success", message: "交付成功，訂單已標記為已完成。" });
+      setDeliveryFilesByOrderId((current) => ({
+        ...current,
+        [order.id]: [],
+      }));
+      await refreshOrders();
+    } catch (error) {
+      setToast({
+        kind: "error",
+        message: error instanceof Error ? error.message : "交付上傳失敗，請稍後再試。",
+      });
+    } finally {
+      setUploadingOrderId(null);
+    }
+  };
 
   return (
     <main className="min-h-screen bg-[linear-gradient(180deg,#f1fbff_0%,#edf7ff_18%,#ffffff_100%)] px-4 py-8 text-slate-800 sm:px-6 lg:px-8">
       <div className="mx-auto max-w-6xl">
+        {toast ? (
+          <div className="pointer-events-none fixed right-5 top-5 z-50">
+            <div
+              className={[
+                "rounded-2xl border px-4 py-3 text-sm font-semibold shadow-lg backdrop-blur-sm",
+                toast.kind === "success"
+                  ? "border-emerald-200 bg-emerald-50 text-emerald-700"
+                  : "border-rose-200 bg-rose-50 text-rose-700",
+              ].join(" ")}
+            >
+              {toast.message}
+            </div>
+          </div>
+        ) : null}
+
         <Link href="/" className="mb-6 inline-flex items-center gap-2 text-sm font-medium text-sky-700 transition hover:text-sky-800">
           <ArrowLeft className="h-4 w-4" />
           返回首頁
@@ -219,14 +517,14 @@ export default function ArtistOrdersListView() {
             <div>
               <h1 className="text-3xl font-black tracking-tight text-slate-900">客戶委託訂單</h1>
               <p className="mt-3 max-w-3xl text-slate-600">
-                僅顯示已指派給你的角色委託。你可以查看需求內容、參考圖與最終交稿狀態。
+                直接平鋪顯示角色委託與周邊委託完整資訊，並可在此上傳周邊交付檔案。
               </p>
             </div>
 
             <div className="grid grid-cols-2 gap-3 rounded-2xl border border-sky-100 bg-sky-50/60 p-4 text-sm">
               <div>
                 <p className="text-xs uppercase tracking-[0.2em] text-slate-500">總委託</p>
-                <p className="mt-1 text-2xl font-black text-slate-900">{orders.length}</p>
+                <p className="mt-1 text-2xl font-black text-slate-900">{cards.length}</p>
               </div>
               <div>
                 <p className="text-xs uppercase tracking-[0.2em] text-slate-500">已完成</p>
@@ -295,39 +593,140 @@ export default function ArtistOrdersListView() {
             )}
           </div>
         ) : (
-          <div className="grid gap-5 md:grid-cols-2 xl:grid-cols-3">
+          <div className="space-y-5">
             {filteredOrders.map((order) => {
               const statusConfig = getStatusConfig(order.status);
 
               return (
-                <article key={order.id} className="rounded-[28px] border border-sky-100 bg-white p-6 shadow-sm transition hover:-translate-y-1 hover:shadow-lg">
+                <article key={`${order.kind}-${order.id}`} className="rounded-[28px] border border-sky-100 bg-white p-6 shadow-sm">
                   <div className="flex items-start justify-between gap-3 border-b border-sky-100 pb-4">
                     <div>
-                      <p className="text-xs uppercase tracking-[0.2em] text-slate-500">客戶名稱</p>
-                      <p className="mt-2 text-lg font-black text-slate-900">{order.clientName}</p>
+                      <p className="text-xs uppercase tracking-[0.2em] text-slate-500">訂單編號</p>
+                      <p className="mt-2 text-lg font-black text-slate-900">#{order.id.slice(0, 8)}</p>
+                      <p className="mt-2 text-xs font-semibold uppercase tracking-[0.2em] text-sky-700">
+                        {order.kind === "character" ? "角色委託" : "周邊委託"}
+                      </p>
                     </div>
                     <span className={`inline-flex rounded-full border px-3 py-1 text-xs font-semibold ${statusConfig.className}`}>
                       {statusConfig.label}
                     </span>
                   </div>
 
-                  <div className="mt-4 space-y-3 text-sm text-slate-600">
-                    <div>
-                      <p className="text-xs uppercase tracking-[0.2em] text-slate-500">角色名稱</p>
-                      <p className="mt-1 text-base font-semibold text-slate-800">{order.name}</p>
-                    </div>
-                    <div>
-                      <p className="text-xs uppercase tracking-[0.2em] text-slate-500">下單時間</p>
-                      <p className="mt-1 font-medium text-slate-700">{formatDateTime(order.created_at)}</p>
-                    </div>
-                  </div>
+                  {order.kind === "character" ? (
+                    <div className="mt-4 grid gap-5 md:grid-cols-2">
+                      <div className="space-y-3 text-sm text-slate-700">
+                        <div>
+                          <p className="text-xs uppercase tracking-[0.2em] text-slate-500">客戶名稱</p>
+                          <p className="mt-1 font-semibold text-slate-900">{order.characterOrder.clientName}</p>
+                        </div>
+                        <div>
+                          <p className="text-xs uppercase tracking-[0.2em] text-slate-500">角色名稱</p>
+                          <p className="mt-1 font-semibold text-slate-900">{order.characterOrder.name}</p>
+                        </div>
+                        <div>
+                          <p className="text-xs uppercase tracking-[0.2em] text-slate-500">角色完整 DNA / 外觀特徵</p>
+                          <dl className="mt-2 grid gap-1">
+                            <div>髮型：{normalizeText(order.characterOrder.hairstyle || order.characterOrder.appearance_details?.hairstyle)}</div>
+                            <div>髮色：{normalizeText(order.characterOrder.hair_color || order.characterOrder.appearance_details?.hair_color)}</div>
+                            <div>眼睛風格：{normalizeText(order.characterOrder.eye_style || order.characterOrder.appearance_details?.eye_style)}</div>
+                            <div>眼色：{normalizeText(order.characterOrder.eye_color || order.characterOrder.appearance_details?.eye_color)}</div>
+                            <div>服裝風格：{normalizeText(order.characterOrder.outfit_accessories || order.characterOrder.appearance_details?.outfit_accessories)}</div>
+                            <div>身高體型：{normalizeText(order.characterOrder.height_body_type || order.characterOrder.appearance_details?.height_body_type)}</div>
+                            <div>歐派大小：{normalizeText(order.characterOrder.bust_size || order.characterOrder.appearance_details?.bust_size)}</div>
+                            <div>個性：{(order.characterOrder.personality_tags ?? []).join("、") || normalizeText(order.characterOrder.appearance_details?.personality_text)}</div>
+                            <div>背景故事：{normalizeText(order.characterOrder.bio || order.characterOrder.appearance_details?.background_story)}</div>
+                            <div>額外需求：{normalizeText(order.characterOrder.additional_notes || order.characterOrder.appearance_details?.additional_notes)}</div>
+                          </dl>
+                        </div>
+                      </div>
 
-                  <Link
-                    href={`/artist/orders/${order.id}`}
-                    className="mt-5 inline-flex w-full items-center justify-center rounded-xl bg-sky-600 px-4 py-2.5 text-sm font-semibold text-white transition hover:bg-sky-700"
-                  >
-                    檢視訂單
-                  </Link>
+                      <div className="rounded-2xl border border-sky-100 bg-sky-50/60 p-4 text-sm text-slate-700">
+                        <p className="text-xs uppercase tracking-[0.2em] text-slate-500">下單時間</p>
+                        <p className="mt-2 font-semibold text-slate-900">{formatDateTime(order.characterOrder.created_at)}</p>
+                        {normalizeStatus(order.characterOrder.status) === "completed" ? (
+                          <div className="mt-4 inline-flex items-center gap-2 rounded-full border border-emerald-200 bg-emerald-50 px-3 py-1 text-xs font-semibold text-emerald-700">
+                            <CheckCircle2 className="h-3.5 w-3.5" />
+                            此角色委託已完成
+                          </div>
+                        ) : null}
+                      </div>
+                    </div>
+                  ) : (
+                    <div className="mt-4 grid gap-5 md:grid-cols-2">
+                      <div className="space-y-3 text-sm text-slate-700">
+                        <div>
+                          <p className="text-xs uppercase tracking-[0.2em] text-slate-500">客戶名稱</p>
+                          <p className="mt-1 font-semibold text-slate-900">{order.merchOrder.clientName}</p>
+                        </div>
+                        <div>
+                          <p className="text-xs uppercase tracking-[0.2em] text-slate-500">周邊類型 (merch_type)</p>
+                          <p className="mt-1 font-semibold text-slate-900">{normalizeText(order.merchOrder.merch_type)}</p>
+                        </div>
+                        <div>
+                          <p className="text-xs uppercase tracking-[0.2em] text-slate-500">綁定角色</p>
+                          <p className="mt-1 text-slate-800">{order.merchOrder.characterName}</p>
+                        </div>
+                        <div>
+                          <p className="text-xs uppercase tracking-[0.2em] text-slate-500">需求詳情 (requirements)</p>
+                          <dl className="mt-2 grid gap-1">
+                            <div>姿勢描述：{normalizeText(order.merchOrder.requirements?.pose)}</div>
+                            <div>表情描述：{normalizeText(order.merchOrder.requirements?.expression)}</div>
+                            <div>場景背景：{normalizeText(order.merchOrder.requirements?.scene)}</div>
+                          </dl>
+                        </div>
+                      </div>
+
+                      <div className="space-y-3 rounded-2xl border border-sky-100 bg-sky-50/60 p-4 text-sm text-slate-700">
+                        <div>
+                          <p className="text-xs uppercase tracking-[0.2em] text-slate-500">寄送地址 (shipping_address)</p>
+                          <dl className="mt-2 grid gap-1">
+                            <div>收件人：{normalizeText(order.merchOrder.shipping_address?.name)}</div>
+                            <div>電話：{normalizeText(order.merchOrder.shipping_address?.phone)}</div>
+                            <div>地址：{normalizeText(order.merchOrder.shipping_address?.address)}</div>
+                          </dl>
+                        </div>
+                        <div>
+                          <p className="text-xs uppercase tracking-[0.2em] text-slate-500">下單時間</p>
+                          <p className="mt-1 font-semibold text-slate-900">{formatDateTime(order.merchOrder.created_at)}</p>
+                        </div>
+
+                        {(order.merchOrder.status ?? "").toLowerCase() === "completed" && order.merchOrder.delivery_file_url ? (
+                          <a
+                            href={order.merchOrder.delivery_file_url}
+                            target="_blank"
+                            rel="noreferrer"
+                            className="inline-flex rounded-full border border-sky-200 bg-white px-3 py-2 text-xs font-semibold text-sky-700"
+                          >
+                            下載 / 預覽交付檔案
+                          </a>
+                        ) : (
+                          <div className="rounded-2xl border border-amber-200 bg-amber-50 p-3">
+                            <div className="mb-2 flex items-center gap-2 text-xs font-semibold text-amber-700">
+                              <UploadCloud className="h-4 w-4" />
+                              上傳交付成品
+                            </div>
+                            <FileUploadField
+                              id={`artist-merch-delivery-${order.merchOrder.id}`}
+                              accept="image/*,.zip,.psd,.blend,.fbx,.obj,.mp4,.mov,.rar"
+                              files={deliveryFilesByOrderId[order.merchOrder.id] ?? []}
+                              onFilesChange={(files) => setFilesForOrder(order.merchOrder.id, files)}
+                              buttonText="選擇交付檔案"
+                              emptyText="尚未選擇任何檔案"
+                              className="text-slate-700"
+                            />
+                            <button
+                              type="button"
+                              onClick={() => void handleUploadMerchDelivery(order.merchOrder)}
+                              disabled={uploadingOrderId === order.merchOrder.id}
+                              className="mt-3 inline-flex w-full items-center justify-center rounded-xl bg-emerald-600 px-3 py-2 text-xs font-semibold text-white transition hover:bg-emerald-700 disabled:cursor-not-allowed disabled:bg-slate-300"
+                            >
+                              {uploadingOrderId === order.merchOrder.id ? "上傳中..." : "上傳並標記為已完成"}
+                            </button>
+                          </div>
+                        )}
+                      </div>
+                    </div>
+                  )}
                 </article>
               );
             })}
