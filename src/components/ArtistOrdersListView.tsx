@@ -49,7 +49,6 @@ type EnrichedCharacterOrder = CharacterOrderRow & {
 type MerchandiseOrderRow = {
   id: string;
   user_id?: string | null;
-  client_id?: string | null;
   artist_id?: string | null;
   character_id?: string | null;
   merch_type?: string | null;
@@ -262,7 +261,6 @@ export default function ArtistOrdersListView() {
           .select(`
             id,
             user_id,
-            client_id,
             artist_id,
             character_id,
             merch_type,
@@ -317,7 +315,7 @@ export default function ArtistOrdersListView() {
       });
 
       const enrichedMerch = ((merchRes.data ?? []) as MerchandiseOrderRow[]).map((row) => {
-        const clientId = row.user_id || row.client_id || "";
+        const clientId = row.user_id || "";
         const client = clientId ? profileMap.get(clientId) : null;
         const displayName = client?.display_name?.trim() || client?.full_name?.trim() || `委託人 #${clientId.slice(0, 6)}`;
         const boundCharacter =
@@ -373,7 +371,6 @@ export default function ArtistOrdersListView() {
         .select(`
           id,
           user_id,
-          client_id,
           artist_id,
           character_id,
           merch_type,
@@ -414,7 +411,7 @@ export default function ArtistOrdersListView() {
     });
 
     const enrichedMerch = ((merchRes.data ?? []) as MerchandiseOrderRow[]).map((row) => {
-      const clientId = row.user_id || row.client_id || "";
+      const clientId = row.user_id || "";
       const client = clientId ? profileMap.get(clientId) : null;
       const displayName = client?.display_name?.trim() || client?.full_name?.trim() || `委託人 #${clientId.slice(0, 6)}`;
       const boundCharacter =

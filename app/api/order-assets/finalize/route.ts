@@ -41,9 +41,9 @@ export async function POST(req: Request) {
     } = await supabase.auth.getUser();
     if (!user) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
 
-    const { data: order } = await supabase.from("orders").select("client_id").eq("id", orderId).maybeSingle();
+    const { data: order } = await supabase.from("orders").select("user_id").eq("id", orderId).maybeSingle();
     if (!order) return NextResponse.json({ error: "Order not found" }, { status: 404 });
-    if (user.id !== (order as any).client_id) return NextResponse.json({ error: "Forbidden" }, { status: 403 });
+    if (user.id !== (order as any).user_id) return NextResponse.json({ error: "Forbidden" }, { status: 403 });
 
     const asset = { image_url: previewUrl ?? null, storage_path: path, purpose: "reference" };
     const { data: existing } = await supabase.from("orders").select("assets").eq("id", orderId).maybeSingle();

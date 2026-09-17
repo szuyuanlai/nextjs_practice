@@ -33,11 +33,11 @@ export async function POST(req: Request) {
     if (!user) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
 
     if (orderId) {
-      const { data: order } = await supabase.from("orders").select("client_id,artist_id").eq("id", orderId).maybeSingle();
+      const { data: order } = await supabase.from("orders").select("user_id,artist_id").eq("id", orderId).maybeSingle();
       if (!order) return NextResponse.json({ error: "Order not found" }, { status: 404 });
       const { data: prof } = await supabase.from("profiles").select("role").eq("id", user.id).maybeSingle();
       const role = (prof as any)?.role;
-      const isClient = user.id === (order as any).client_id;
+      const isClient = user.id === (order as any).user_id;
       const isArtist = user.id === (order as any).artist_id;
       const isAdmin = role === "admin";
       if (!isClient && !isArtist && !isAdmin) return NextResponse.json({ error: "Forbidden" }, { status: 403 });

@@ -69,14 +69,14 @@ export async function POST(req: Request) {
 
     if (!user) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
 
-    const { data: order, error: orderErr } = await supabase.from("orders").select("client_id, artist_id, assets").eq("id", orderId).maybeSingle();
+    const { data: order, error: orderErr } = await supabase.from("orders").select("user_id, artist_id, assets").eq("id", orderId).maybeSingle();
     if (orderErr || !order) return NextResponse.json({ error: "Order not found" }, { status: 404 });
 
     const assets = order.assets ?? [];
     const match = assets.find((a: any) => a.storage_path === path || a.image_url?.includes(path));
     if (!match) return NextResponse.json({ error: "Asset not part of order" }, { status: 403 });
 
-    const isClient = user.id === order.client_id;
+    const isClient = user.id === order.user_id;
     const isArtist = user.id === order.artist_id;
 
     const { data: prof } = await supabase.from("profiles").select("role").eq("id", user.id).maybeSingle();
