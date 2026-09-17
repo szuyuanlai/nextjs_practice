@@ -10,7 +10,7 @@ type FlowStep = 1 | 2 | 3 | 4 | 5;
 
 type CharacterOption = {
   id: string;
-  name: string;
+  character_name: string;
   status?: string | null;
   artist_id?: string | null;
 };
@@ -144,7 +144,7 @@ export default function ShopPage() {
       setLoadingCharacters(true);
       const { data, error } = await supabase
         .from("characters")
-        .select("id,name,status,artist_id")
+        .select("id,character_name,status,artist_id")
         .eq("user_id", userId)
         .order("created_at", { ascending: false });
 
@@ -154,7 +154,7 @@ export default function ShopPage() {
         setStatusMessage({ kind: "error", message: `讀取角色失敗：${error.message}` });
         setCharacters([]);
       } else {
-        const next = ((data ?? []) as CharacterOption[]).filter((row) => row.id && row.name);
+        const next = ((data ?? []) as CharacterOption[]).filter((row) => row.id && row.character_name);
         setCharacters(next);
         if (!selectedCharacterId && next[0]) {
           setSelectedCharacterId(next[0].id);
@@ -275,8 +275,9 @@ export default function ShopPage() {
 
       const payload = {
         user_id: normalizedUserId,
-        client_id: normalizedUserId,
         character_id: normalizedCharacterId,
+        // 1. 新增角色名稱（若沒選角色則帶入預設值防呆）
+        character_name: selectedCharacter?.character_name || "未命名角色",
         artist_id: normalizedArtistId,
         merch_type: selectedMerch,
         requirements: {
@@ -290,6 +291,7 @@ export default function ShopPage() {
           address: shipping.address.trim(),
         },
         status: "pending",
+        // 2. 舊的 client_id 已刪除
       };
 
       const { data, error } = await supabase.from("orders").insert([payload]).select().single();
@@ -335,7 +337,7 @@ export default function ShopPage() {
 
         <section className="mt-6 rounded-[26px] border border-sky-100 bg-white p-4 shadow-sm sm:p-5">
           <div className="grid gap-2 md:grid-cols-5">
-            {["選商品", "選角色", "選繪師", "填需求", "送出"] .map((label, index) => {
+            {["選商品", "選角色", "選繪師", "填需求", "送出"].map((label, index) => {
               const active = step === index + 1;
               return (
                 <div
@@ -432,7 +434,7 @@ export default function ShopPage() {
                               selected ? "border-sky-300 bg-sky-50" : "border-slate-200 bg-white",
                             ].join(" ")}
                           >
-                            <p className="font-bold text-slate-900">{character.name}</p>
+                            <p className="font-bold text-slate-900">{character.character_name}</p>
                             <p className="mt-1 text-xs text-slate-500">狀態：{character.status ?? "draft"}</p>
                           </button>
                         );
@@ -563,7 +565,7 @@ export default function ShopPage() {
                   <h2 className="text-xl font-black text-slate-900">Step 5. 送出訂單</h2>
                   <div className="mt-4 grid gap-3 rounded-2xl border border-sky-200 bg-sky-50/60 p-4 text-sm text-slate-700">
                     <div>周邊類型：{selectedMerch}</div>
-                    <div>角色：{selectedCharacter?.name ?? "-"}</div>
+                    <div>角色：{selectedCharacter?.character_name ?? "-"}</div>
                     <div>繪師：{selectedArtist ? getArtistName(selectedArtist) : "-"}</div>
                     <div>姿勢描述：{requirements.pose || "-"}</div>
                     <div>表情描述：{requirements.expression || "-"}</div>

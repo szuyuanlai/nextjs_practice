@@ -14,7 +14,7 @@ type CharacterRecord = {
   id: string;
   user_id: string;
   artist_id: string | null;
-  name: string;
+  character_name: string;
   gender: string | null;
   status: CharacterStatus | null;
   personality_tags: string[] | null;
@@ -153,7 +153,7 @@ export default function ArtistOrderDetailView({ orderId }: Props) {
 
       const { data, error } = await supabase
         .from("characters")
-        .select("id,user_id,artist_id,name,gender,status,personality_tags,bio,appearance_details,image_urls,character_sheet_url,character_icon_url,created_at")
+        .select("id,user_id,artist_id,character_name,gender,status,personality_tags,bio,appearance_details,image_urls,character_sheet_url,character_icon_url,created_at")
         .eq("id", orderId)
         .eq("artist_id", user.id)
         .maybeSingle();
@@ -370,7 +370,7 @@ export default function ArtistOrderDetailView({ orderId }: Props) {
               <p className="mb-2 inline-flex items-center gap-2 rounded-full border border-sky-200 bg-sky-50 px-3 py-1 text-[11px] font-semibold uppercase tracking-[0.2em] text-sky-700">
                 客戶委託詳情
               </p>
-              <h1 className="text-3xl font-black tracking-tight text-slate-900">{character.name}</h1>
+              <h1 className="text-3xl font-black tracking-tight text-slate-900">{character.character_name}</h1>
               <p className="mt-3 text-sm text-slate-600">客戶名稱：{clientName}</p>
               <p className="mt-1 text-sm text-slate-600">下單時間：{formatDateTime(character.created_at)}</p>
             </div>

@@ -12,7 +12,7 @@ type CharacterOrderRow = {
   id: string;
   user_id: string;
   artist_id: string | null;
-  name: string;
+  character_name: string;
   status: string | null;
   created_at: string;
   image_urls?: string[] | null;
@@ -69,7 +69,7 @@ type ProfileRow = {
 
 type CharacterBasic = {
   id: string;
-  name: string;
+  character_name: string;
 };
 
 type EnrichedMerchOrder = MerchandiseOrderRow & {
@@ -252,7 +252,7 @@ export default function ArtistOrdersListView() {
         supabase
           .from("characters")
           .select(
-            "id,user_id,artist_id,name,status,created_at,image_urls,character_sheet_url,character_icon_url,is_anonymous,personality_tags,bio,hairstyle,hair_color,eye_style,eye_color,height_body_type,bust_size,outfit_accessories,additional_notes,appearance_details,client:profiles!characters_user_id_fkey(display_name,full_name)",
+            "id,user_id,artist_id,character_name,status,created_at,image_urls,character_sheet_url,character_icon_url,is_anonymous,personality_tags,bio,hairstyle,hair_color,eye_style,eye_color,height_body_type,bust_size,outfit_accessories,additional_notes,appearance_details,client:profiles!characters_user_id_fkey(display_name,full_name)",
           )
           .eq("artist_id", user.id)
           .order("created_at", { ascending: false }),
@@ -263,7 +263,7 @@ export default function ArtistOrdersListView() {
           .not("merch_type", "is", null)
           .order("created_at", { ascending: false }),
         supabase.from("profiles").select("id,display_name,full_name,avatar_url"),
-        supabase.from("characters").select("id,name"),
+        supabase.from("characters").select("id,character_name"),
       ]);
 
       console.log("Fetched characters error:", charactersRes.error, charactersRes.data);
@@ -312,7 +312,7 @@ export default function ArtistOrdersListView() {
           ...row,
           clientName: displayName,
           clientAvatarUrl: client?.avatar_url,
-          characterName: boundCharacter?.name ?? "未綁定角色",
+          characterName: boundCharacter?.character_name ?? "未綁定角色",
         };
       });
 
@@ -345,7 +345,7 @@ export default function ArtistOrdersListView() {
       supabase
         .from("characters")
         .select(
-          "id,user_id,artist_id,name,status,created_at,image_urls,character_sheet_url,character_icon_url,is_anonymous,personality_tags,bio,hairstyle,hair_color,eye_style,eye_color,height_body_type,bust_size,outfit_accessories,additional_notes,appearance_details,client:profiles!characters_user_id_fkey(display_name,full_name)",
+          "id,user_id,artist_id,character_name,status,created_at,image_urls,character_sheet_url,character_icon_url,is_anonymous,personality_tags,bio,hairstyle,hair_color,eye_style,eye_color,height_body_type,bust_size,outfit_accessories,additional_notes,appearance_details,client:profiles!characters_user_id_fkey(display_name,full_name)",
         )
         .eq("artist_id", user.id)
         .order("created_at", { ascending: false }),
@@ -356,7 +356,7 @@ export default function ArtistOrdersListView() {
         .not("merch_type", "is", null)
         .order("created_at", { ascending: false }),
       supabase.from("profiles").select("id,display_name,full_name,avatar_url"),
-      supabase.from("characters").select("id,name"),
+      supabase.from("characters").select("id,character_name"),
     ]);
 
     const firstError = charactersRes.error || merchRes.error || profilesRes.error || charactersBasicRes.error;
@@ -391,7 +391,7 @@ export default function ArtistOrdersListView() {
         ...row,
         clientName: displayName,
         clientAvatarUrl: client?.avatar_url,
-        characterName: boundCharacter?.name ?? "未綁定角色",
+        characterName: boundCharacter?.character_name ?? "未綁定角色",
       };
     });
 
@@ -795,7 +795,7 @@ export default function ArtistOrdersListView() {
                         </div>
                         <div>
                           <p className="text-xs uppercase tracking-[0.2em] text-slate-500">角色名稱</p>
-                          <p className="mt-1 font-semibold text-slate-900">{order.characterOrder.name}</p>
+                          <p className="mt-1 font-semibold text-slate-900">{order.characterOrder.character_name}</p>
                         </div>
                         <div>
                           <p className="text-xs uppercase tracking-[0.2em] text-slate-500">角色完整 DNA / 外觀特徵</p>

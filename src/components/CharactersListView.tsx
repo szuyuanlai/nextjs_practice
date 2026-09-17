@@ -8,7 +8,7 @@ import { getSupabaseClient } from "@/src/lib/supabase/client";
 
 type CharacterListItem = {
   id: string;
-  name: string;
+  character_name: string;
   created_at: string;
   status: string | null;
   gender: string | null;
@@ -104,7 +104,7 @@ export default function CharactersListView() {
 
       const { data, error } = await supabase
         .from("characters")
-        .select("id,name,created_at,status,gender,personality_tags,image_urls,character_sheet_url,character_icon_url,appearance_details")
+        .select("id,character_name,created_at,status,gender,personality_tags,image_urls,character_sheet_url,character_icon_url,appearance_details")
         .eq("user_id", user.id)
         .order("created_at", { ascending: false });
 
@@ -222,7 +222,7 @@ export default function CharactersListView() {
                       {thumbnailUrl ? (
                         <img
                           src={thumbnailUrl}
-                          alt={`${character.name} 角色 Icon`}
+                          alt={`${character.character_name} 角色 Icon`}
                           className="h-full w-full object-cover transition duration-500 group-hover:scale-105"
                         />
                       ) : (
@@ -238,12 +238,12 @@ export default function CharactersListView() {
 
                   <div className="p-5">
                     <div className="mb-3 flex items-start justify-between gap-3">
-                      <h2 className="line-clamp-1 text-2xl font-black text-slate-900">{character.name}</h2>
+                      <h2 className="line-clamp-1 text-2xl font-black text-slate-900">{character.character_name}</h2>
                       <Sparkles className="mt-1 h-5 w-5 shrink-0 text-sky-500 transition group-hover:rotate-12" />
                     </div>
 
                     <div className="mb-3 rounded-xl border border-sky-100 bg-sky-50/60 px-3 py-2 text-sm text-slate-700">
-                      <p className="font-semibold text-slate-800">執筆繪師</p>
+                      <p className="font-semibold text-slate-800">繪師</p>
                       <p className="mt-0.5 line-clamp-1">{artistName}</p>
                     </div>
 

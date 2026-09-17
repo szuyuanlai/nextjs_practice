@@ -9,7 +9,7 @@ import { getSupabaseClient } from "@/src/lib/supabase/client";
 type CharacterRecord = {
   id: string;
   user_id: string;
-  name: string;
+  character_name: string;
   gender: string | null;
   status: string | null;
   personality_tags: string[] | null;
@@ -116,7 +116,7 @@ export default function CharacterDetailView({ characterId }: Props) {
 
       const { data, error } = await supabase
         .from("characters")
-        .select("id,user_id,name,gender,status,personality_tags,bio,appearance_details,image_urls,character_sheet_url,character_icon_url,created_at")
+        .select("id,user_id,character_name,gender,status,personality_tags,bio,appearance_details,image_urls,character_sheet_url,character_icon_url,created_at")
         .eq("id", characterId)
         .eq("user_id", user.id)
         .maybeSingle();
@@ -218,7 +218,7 @@ export default function CharacterDetailView({ characterId }: Props) {
                 <Sparkles className="h-3.5 w-3.5" />
                 Character Profile
               </p>
-              <h1 className="text-3xl font-black tracking-tight text-slate-900">{character.name}</h1>
+              <h1 className="text-3xl font-black tracking-tight text-slate-900">{character.character_name}</h1>
               <p className="mt-3 text-sm text-slate-600">建立時間：{formatDate(character.created_at)}</p>
               <p className="mt-1 text-sm text-slate-600">
                 執筆繪師：{readAppearanceText(appearance, "selected_artist_name")}
@@ -227,7 +227,7 @@ export default function CharacterDetailView({ characterId }: Props) {
 
             {isCompleted && character.character_icon_url ? (
               <div className="h-28 w-28 overflow-hidden rounded-[28px] border border-sky-100 bg-slate-50 shadow-sm">
-                <img src={character.character_icon_url} alt={`${character.name} 角色 Icon`} className="h-full w-full object-cover" />
+                <img src={character.character_icon_url} alt={`${character.character_name} 角色 Icon`} className="h-full w-full object-cover" />
               </div>
             ) : (
               <div className="flex h-28 w-28 items-center justify-center rounded-[28px] border border-sky-100 bg-[radial-gradient(circle_at_top,#ffffff_0%,#eff6ff_40%,#dbeafe_100%)] p-4 text-center shadow-sm">
@@ -338,7 +338,7 @@ export default function CharacterDetailView({ characterId }: Props) {
               rel="noreferrer"
               className="mt-4 block overflow-hidden rounded-2xl border border-slate-200 bg-slate-50"
             >
-              <img src={character.character_sheet_url} alt={`${character.name} 角色三視圖`} className="max-h-[560px] w-full object-contain" />
+              <img src={character.character_sheet_url} alt={`${character.character_name} 角色三視圖`} className="max-h-[560px] w-full object-contain" />
             </a>
           </section>
         ) : (

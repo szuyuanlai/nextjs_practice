@@ -14,7 +14,7 @@ const PORTFOLIO_BUCKET = "artist-assets";
 
 type AuthorizedCharacter = {
   id: string;
-  name: string;
+  character_name: string;
   artist_id: string | null;
   status: string | null;
   is_public_portfolio: boolean | null;
@@ -126,7 +126,7 @@ export default function ArtistProfilePage() {
 
       const { data: characterItems } = await supabase
         .from("characters")
-        .select("id,name,artist_id,status,is_public_portfolio,image_urls,appearance_details,created_at")
+        .select("id,character_name,artist_id,status,is_public_portfolio,image_urls,appearance_details,created_at")
         .eq("artist_id", user.id)
         .eq("status", "completed")
         .eq("is_public_portfolio", true)
@@ -255,7 +255,7 @@ export default function ArtistProfilePage() {
 
     const { data, error } = await supabase
       .from("characters")
-      .select("id,name,artist_id,status,is_public_portfolio,image_urls,appearance_details,created_at")
+      .select("id,character_name,artist_id,status,is_public_portfolio,image_urls,appearance_details,created_at")
       .eq("artist_id", artistId)
       .eq("status", "completed")
       .eq("is_public_portfolio", true)
@@ -371,7 +371,7 @@ export default function ArtistProfilePage() {
 
         return {
           artist_id: profile.id,
-          title: `${character.name}｜平台授權委託作品`,
+          title: `${character.character_name}｜平台授權委託作品`,
           image_url: previewUrl,
           storage_path: null,
           is_internal: false,
@@ -672,12 +672,12 @@ export default function ArtistProfilePage() {
                       className="mt-1 h-4 w-4"
                     />
                     <div className="flex-1">
-                      <div className="text-sm font-semibold text-slate-900">{character.name}</div>
+                      <div className="text-sm font-semibold text-slate-900">{character.character_name}</div>
                       <div className="mt-1 text-xs text-slate-500">{isAlreadyInPortfolio ? "已加入作品集" : "可加入公開作品集"}</div>
 
                       {previewUrl ? (
                         <div className="mt-3 h-36 overflow-hidden rounded-xl border border-slate-200 bg-slate-50">
-                          <img src={previewUrl} alt={character.name} className="h-full w-full object-cover" />
+                          <img src={previewUrl} alt={character.character_name} className="h-full w-full object-cover" />
                         </div>
                       ) : (
                         <div className="mt-3 rounded-xl border border-dashed border-slate-200 p-4 text-sm text-slate-500">此角色目前沒有可用的預覽圖。</div>
