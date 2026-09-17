@@ -32,6 +32,11 @@ const PERSONALITIES = [
   { id: "cheerful", label: "活潑" },
 ];
 
+function normalizeNullableId(value: string | null | undefined): string | null {
+  const trimmed = value?.trim();
+  return trimmed ? trimmed : null;
+}
+
 function NewOrderPageContent() {
   const search = useSearchParams();
   const router = useRouter();
@@ -125,6 +130,13 @@ function NewOrderPageContent() {
         throw new Error("專案名稱、需求概述、聯絡姓名與 Email 為必填欄位。");
       }
 
+      const normalizedUserId = normalizeNullableId(user.id);
+      const normalizedArtistId = normalizeNullableId(artistId);
+
+      if (!normalizedUserId) {
+        throw new Error("使用者識別失敗，請重新登入後再試一次。");
+      }
+
       const uploadedAssets: Array<{ image_url: string | null; storage_path: string | null; purpose: string }> = [];
 
       for (const file of refs) {
@@ -180,9 +192,9 @@ function NewOrderPageContent() {
       }
 
       const payload = {
-        user_id: user.id,
-        client_id: user.id,
-        artist_id: artistId || null,
+        user_id: normalizedUserId,
+        client_id: normalizedUserId,
+        artist_id: normalizedArtistId,
         tier: tier.trim() || "未指定",
         client_name: clientName.trim(),
         email: email.trim(),
@@ -267,7 +279,7 @@ function NewOrderPageContent() {
                     value={projectName}
                     onChange={(event) => setProjectName(event.target.value)}
                     className="rounded-2xl border border-sky-100 bg-sky-50/60 px-4 py-3 text-slate-800 placeholder:text-slate-400 focus:border-sky-400 focus:outline-none"
-                    placeholder="例如：夜色織夢角色設計"
+                    placeholder="例如：早瀨優香角色設計"
                   />
                 </label>
 

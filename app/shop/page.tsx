@@ -62,6 +62,11 @@ function getArtistName(artist: ArtistOption) {
   return `繪師 #${artist.id.slice(0, 6)}`;
 }
 
+function normalizeNullableId(value: string | null | undefined): string | null {
+  const trimmed = value?.trim();
+  return trimmed ? trimmed : null;
+}
+
 export default function ShopPage() {
   const router = useRouter();
   const [step, setStep] = useState<FlowStep>(1);
@@ -260,11 +265,19 @@ export default function ShopPage() {
     setStatusMessage(null);
 
     try {
+      const normalizedUserId = normalizeNullableId(userId);
+      const normalizedCharacterId = normalizeNullableId(selectedCharacterId);
+      const normalizedArtistId = normalizeNullableId(selectedArtistId);
+
+      if (!normalizedUserId || !normalizedCharacterId || !normalizedArtistId) {
+        throw new Error("訂單資料不完整：使用者、角色或繪師識別碼無效。");
+      }
+
       const payload = {
-        user_id: userId,
-        client_id: userId,
-        character_id: selectedCharacterId,
-        artist_id: selectedArtistId,
+        user_id: normalizedUserId,
+        client_id: normalizedUserId,
+        character_id: normalizedCharacterId,
+        artist_id: normalizedArtistId,
         merch_type: selectedMerch,
         requirements: {
           pose: requirements.pose.trim(),
@@ -279,7 +292,7 @@ export default function ShopPage() {
         status: "pending",
       };
 
-      const { data, error } = await supabase.from("orders").insert([payload]).select("id").maybeSingle();
+      const { data, error } = await supabase.from("orders").insert([payload]).select().single();
 
       if (error) {
         throw error;
