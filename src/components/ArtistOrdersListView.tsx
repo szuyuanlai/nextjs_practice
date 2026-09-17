@@ -102,7 +102,7 @@ type Toast = {
 };
 
 const MERCH_DELIVERY_BUCKETS = ["merch-deliveries", "completed-assets", "artist-assets"] as const;
-const CHARACTER_DELIVERY_BUCKETS = ["completed-assets", "character-references", "artist-assets"] as const;
+const CHARACTER_DELIVERY_BUCKETS = ["deliveries", "completed-assets", "character-references", "artist-assets"] as const;
 
 function parseStringArray(value: unknown) {
   if (!Array.isArray(value)) {
@@ -458,6 +458,7 @@ export default function ArtistOrdersListView() {
   };
 
   const handleUploadCharacterDelivery = async (order: EnrichedCharacterOrder) => {
+    const characterId = order.id;
     const sheetFile = (characterSheetFilesByOrderId[order.id] ?? [])[0] ?? null;
     const iconFile = (characterIconFilesByOrderId[order.id] ?? [])[0] ?? null;
 
@@ -486,10 +487,10 @@ export default function ArtistOrdersListView() {
     setUploadingOrderId(order.id);
 
     try {
-      console.log("[ArtistOrders] start character delivery", { orderId: order.id, artistId: user.id });
+      console.log("[ArtistOrders] start character delivery", { characterId, artistId: user.id });
 
-      const sheetPath = `${user.id}/${order.id}/character-sheet-${Date.now()}-${sheetFile.name}`;
-      const iconPath = `${user.id}/${order.id}/character-icon-${Date.now()}-${iconFile.name}`;
+      const sheetPath = `${user.id}/${characterId}/character-sheet-${Date.now()}-${sheetFile.name}`;
+      const iconPath = `${user.id}/${characterId}/character-icon-${Date.now()}-${iconFile.name}`;
 
       const { publicUrl: characterSheetUrl } = await uploadFileToBucket(
         supabase,
@@ -505,7 +506,7 @@ export default function ArtistOrdersListView() {
       );
 
       console.log("[ArtistOrders] upload success", {
-        orderId: order.id,
+        characterId,
         characterSheetUrl,
         characterIconUrl,
       });
@@ -530,37 +531,19 @@ export default function ArtistOrdersListView() {
           image_urls: nextImageUrls,
           appearance_details: nextAppearance,
         })
-        .eq("id", order.id)
+        .eq("id", characterId)
         .eq("artist_id", user.id)
         .select("id,status,character_sheet_url,character_icon_url");
 
       if (characterUpdateError) {
+        console.error("Characters 更新失敗：", characterUpdateError);
+        alert(`交付失敗：${characterUpdateError.message}`);
         throw characterUpdateError;
       }
 
       console.log("[ArtistOrders] characters update success", {
-        orderId: order.id,
+        characterId,
         rows: characterUpdateRows,
-      });
-
-      // Sync related order rows so customer order timelines are consistent.
-      const { data: orderUpdateRows, error: orderUpdateError } = await supabase
-        .from("orders")
-        .update({
-          status: "completed",
-        })
-        .eq("character_id", order.id)
-        .eq("artist_id", user.id)
-        .is("merch_type", null)
-        .select("id,status");
-
-      if (orderUpdateError) {
-        throw orderUpdateError;
-      }
-
-      console.log("[ArtistOrders] orders update success", {
-        orderId: order.id,
-        rows: orderUpdateRows,
       });
 
       setCharacterSheetFilesByOrderId((current) => ({
@@ -572,6 +555,7 @@ export default function ArtistOrdersListView() {
         [order.id]: [],
       }));
       setToast({ kind: "success", message: "角色交付成功，狀態已更新為已完成。" });
+      alert("交付成功！");
       await refreshOrders();
       router.refresh();
     } catch (error) {
