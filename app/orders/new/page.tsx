@@ -203,6 +203,7 @@ function NewOrderPageContent() {
         budget: budget.trim() || null,
         status: "draft",
         assets: uploadedAssets,
+        body_size: bodyType?.trim() || "未指定",
       };
 
       const { error } = await supabase.from("orders").insert([payload]);
