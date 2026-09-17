@@ -52,7 +52,9 @@ type MerchandiseOrderRow = {
   artist_id?: string | null;
   character_id?: string | null;
   merch_type?: string | null;
-  requirements?: Record<string, unknown> | null;
+  pose?: string | null;
+  expression?: string | null;
+  background_scene?: string | null;
   shipping_address?: Record<string, unknown> | null;
   delivery_file_url?: string | null;
   status?: string | null;
@@ -264,7 +266,9 @@ export default function ArtistOrdersListView() {
             artist_id,
             character_id,
             merch_type,
-            requirements,
+            pose,
+            expression,
+            background_scene,
             shipping_address,
             delivery_file_url,
             status,
@@ -374,7 +378,9 @@ export default function ArtistOrdersListView() {
           artist_id,
           character_id,
           merch_type,
-          requirements,
+          pose,
+          expression,
+          background_scene,
           shipping_address,
           delivery_file_url,
           status,
@@ -952,11 +958,11 @@ export default function ArtistOrdersListView() {
                           <p className="mt-1 text-slate-800">{order.merchOrder.characterName}</p>
                         </div>
                         <div>
-                          <p className="text-xs uppercase tracking-[0.2em] text-slate-500">需求詳情 (requirements)</p>
+                          <p className="text-xs uppercase tracking-[0.2em] text-slate-500">需求詳情</p>
                           <dl className="mt-2 grid gap-1">
-                            <div>姿勢描述：{normalizeText(order.merchOrder.requirements?.pose)}</div>
-                            <div>表情描述：{normalizeText(order.merchOrder.requirements?.expression)}</div>
-                            <div>場景背景：{normalizeText(order.merchOrder.requirements?.scene)}</div>
+                            <div>姿勢描述：{normalizeText(order.merchOrder.pose)}</div>
+                            <div>表情描述：{normalizeText(order.merchOrder.expression)}</div>
+                            <div>場景背景：{normalizeText(order.merchOrder.background_scene)}</div>
                           </dl>
                         </div>
                       </div>

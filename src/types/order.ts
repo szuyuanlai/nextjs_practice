@@ -32,7 +32,9 @@ export type Order = {
   user_id: string;
   character_id?: string | null;
   merch_type?: string | null;
-  requirements?: Record<string, unknown> | null;
+  pose?: string | null;
+  expression?: string | null;
+  background_scene?: string | null;
   shipping_address?: Record<string, unknown> | null;
   delivery_file_url?: string | null;
   status?: string | null;

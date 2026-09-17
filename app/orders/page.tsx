@@ -34,7 +34,9 @@ type MerchandiseOrderRow = {
   user_id?: string | null;
   character_id?: string | null;
   merch_type?: string | null;
-  requirements?: Record<string, unknown> | null;
+  pose?: string | null;
+  expression?: string | null;
+  background_scene?: string | null;
   shipping_address?: Record<string, unknown> | null;
   delivery_file_url?: string | null;
   status?: string | null;
@@ -153,7 +155,9 @@ export default function OrdersPage() {
             user_id,
             character_id,
             merch_type,
-            requirements,
+            pose,
+            expression,
+            background_scene,
             shipping_address,
             delivery_file_url,
             status,
@@ -190,7 +194,9 @@ export default function OrdersPage() {
             user_id,
             character_id,
             merch_type,
-            requirements,
+            pose,
+            expression,
+            background_scene,
             shipping_address,
             delivery_file_url,
             status,
@@ -413,9 +419,11 @@ export default function OrdersPage() {
                         </div>
                         <div>
                           <p className="text-xs uppercase tracking-[0.2em] text-slate-500">客戶需求詳情</p>
-                          <p className="mt-2 text-sm text-slate-700">
-                            {card.merchOrder.requirements ? JSON.stringify(card.merchOrder.requirements) : "未填寫需求"}
-                          </p>
+                          <div className="mt-2 space-y-1 text-sm text-slate-700">
+                            <div>姿勢描述：{normalizeText(card.merchOrder.pose)}</div>
+                            <div>表情描述：{normalizeText(card.merchOrder.expression)}</div>
+                            <div>場景背景：{normalizeText(card.merchOrder.background_scene)}</div>
+                          </div>
                         </div>
                       </div>
 

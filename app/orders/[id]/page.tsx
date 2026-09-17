@@ -13,7 +13,9 @@ type OrderRow = {
   user_id: string;
   character_id?: string | null;
   merch_type?: string | null;
-  requirements?: Record<string, unknown> | null;
+  pose?: string | null;
+  expression?: string | null;
+  background_scene?: string | null;
   shipping_address?: Record<string, unknown> | null;
   delivery_file_url?: string | null;
   status: OrderStatus;
@@ -265,10 +267,14 @@ export default function OrderDetailPage({ params }: Props) {
                     已同步角色資料欄位
                   </div>
                 ) : null}
-                {order.requirements ? (
+                {(order.pose || order.expression || order.background_scene) ? (
                   <div className="mt-4 rounded-2xl border border-sky-100 bg-white p-4 text-sm text-slate-700">
                     <p className="text-xs uppercase tracking-[0.18em] text-slate-500">周邊需求</p>
-                    <p className="mt-2 whitespace-pre-wrap leading-7">{typeof order.requirements === "string" ? order.requirements : JSON.stringify(order.requirements, null, 2)}</p>
+                    <div className="mt-2 space-y-2 whitespace-pre-wrap leading-7">
+                      <p>姿勢描述：{order.pose || "未填寫"}</p>
+                      <p>表情描述：{order.expression || "未填寫"}</p>
+                      <p>背景場景：{order.background_scene || "未填寫"}</p>
+                    </div>
                   </div>
                 ) : null}
                 {order.shipping_address ? (
