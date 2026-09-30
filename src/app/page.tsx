@@ -2,12 +2,18 @@ import { Navbar } from "@/src/components/Navbar";
 import { ArtistMarquee } from "@/src/components/ArtistMarquee";
 import { Palette, Wand2 } from "lucide-react";
 import Image from "next/image";
+import { existsSync } from "node:fs";
+import { join } from "node:path";
 
 const processSteps = [
   { title: "1. 需求確認", text: "填寫角色風格、配色與參考方向，快速對齊你想要的世界觀。" },
   { title: "2. 方案執行", text: "由團隊整理重點並進入製作，分階段回報讓進度透明可追蹤。" },
   { title: "3. 完稿交付", text: "完成定稿與素材整理，交付可直接應用的角色資產。" },
 ];
+
+const heroImageSrc = existsSync(join(process.cwd(), "public", "hero-character-banner.jpg"))
+  ? "/hero-character-banner.jpg"
+  : null;
 
 export default function HomePage() {
   return (
@@ -16,7 +22,7 @@ export default function HomePage() {
 
       <div className="mx-auto max-w-7xl px-4 py-8 sm:px-6 lg:px-8 lg:py-12">
         <section className="mb-10 rounded-[32px] border border-white/10 bg-slate-900/60 p-6 shadow-2xl shadow-violet-500/10 sm:p-8 lg:p-12">
-          <div className="grid grid-cols-1 gap-8 lg:grid-cols-2 lg:items-center">
+          <div className="grid grid-cols-1 lg:grid-cols-2 gap-8 items-center">
             <div className="space-y-6">
               <div className="inline-flex items-center gap-2 rounded-full border border-pink-400/30 bg-pink-500/10 px-3 py-1.5 text-xs font-semibold uppercase tracking-[0.2em] text-pink-200">
                 <span className="h-2 w-2 rounded-full bg-pink-400" />
@@ -57,17 +63,37 @@ export default function HomePage() {
               </div>
             </div>
 
-            <article className="overflow-hidden rounded-2xl border border-gray-200 bg-white shadow-sm">
-              <Image
-                src="/hero-character-banner.svg"
-                alt="角色立繪展示"
-                width={900}
-                height={1200}
-                className="w-full aspect-[3/4] object-cover"
-                priority
-              />
-              <div className="px-4 py-3 text-sm font-medium text-gray-700">角色範例</div>
-            </article>
+            <div className="lg:pl-2">
+              <article className="overflow-hidden rounded-2xl border border-gray-200 bg-white shadow-sm">
+                {heroImageSrc ? (
+                  <Image
+                    src={heroImageSrc}
+                    alt="角色立繪展示"
+                    width={900}
+                    height={1200}
+                    className="w-full h-auto min-h-[300px] aspect-[3/4] object-cover"
+                    priority
+                  />
+                ) : (
+                  <div className="flex w-full min-h-[300px] aspect-[3/4] items-center justify-center bg-slate-100">
+                    <svg
+                      width="220"
+                      height="220"
+                      viewBox="0 0 220 220"
+                      fill="none"
+                      xmlns="http://www.w3.org/2000/svg"
+                      aria-label="角色圖佔位"
+                      role="img"
+                    >
+                      <circle cx="110" cy="110" r="106" fill="#E2E8F0" />
+                      <circle cx="110" cy="90" r="42" fill="#94A3B8" />
+                      <path d="M38 188C49 152 77 134 110 134C143 134 171 152 182 188" fill="#94A3B8" />
+                    </svg>
+                  </div>
+                )}
+                <div className="px-4 py-3 text-sm font-medium text-gray-700">角色範例</div>
+              </article>
+            </div>
           </div>
         </section>
 
