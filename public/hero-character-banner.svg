@@ -1,0 +1,38 @@
+<svg width="900" height="1200" viewBox="0 0 900 1200" fill="none" xmlns="http://www.w3.org/2000/svg">
+  <defs>
+    <linearGradient id="bg" x1="84" y1="88" x2="805" y2="1112" gradientUnits="userSpaceOnUse">
+      <stop stop-color="#FFB8E6"/>
+      <stop offset="0.48" stop-color="#9BD9FF"/>
+      <stop offset="1" stop-color="#6D7CFF"/>
+    </linearGradient>
+    <linearGradient id="hair" x1="336" y1="286" x2="576" y2="486" gradientUnits="userSpaceOnUse">
+      <stop stop-color="#D26BFF"/>
+      <stop offset="1" stop-color="#6B8BFF"/>
+    </linearGradient>
+  </defs>
+
+  <rect x="0" y="0" width="900" height="1200" fill="url(#bg)"/>
+
+  <circle cx="744" cy="170" r="130" fill="#FFFFFF" fill-opacity="0.35"/>
+  <circle cx="140" cy="1060" r="180" fill="#FFFFFF" fill-opacity="0.2"/>
+
+  <ellipse cx="450" cy="940" rx="270" ry="70" fill="#2E2A64" fill-opacity="0.26"/>
+
+  <path d="M290 428C290 318 360 246 450 246C540 246 610 318 610 428V526H290V428Z" fill="url(#hair)"/>
+  <rect x="310" y="330" width="280" height="330" rx="140" fill="#FFE6D8"/>
+
+  <ellipse cx="390" cy="468" rx="22" ry="28" fill="#3F356E"/>
+  <ellipse cx="510" cy="468" rx="22" ry="28" fill="#3F356E"/>
+  <circle cx="396" cy="460" r="8" fill="#FFFFFF"/>
+  <circle cx="516" cy="460" r="8" fill="#FFFFFF"/>
+
+  <path d="M412 558C431 575 469 575 488 558" stroke="#D0718D" stroke-width="12" stroke-linecap="round"/>
+
+  <path d="M242 760C242 654 334 586 450 586C566 586 658 654 658 760V900H242V760Z" fill="#F6F7FF"/>
+  <path d="M338 618L450 760L562 618" stroke="#9AB4FF" stroke-width="18" stroke-linecap="round"/>
+
+  <rect x="214" y="866" width="472" height="240" rx="38" fill="#FFFFFF" fill-opacity="0.45"/>
+  <text x="450" y="990" text-anchor="middle" fill="#2F2A58" font-family="Noto Sans TC, sans-serif" font-size="44" font-weight="700" letter-spacing="0.08em">
+    High-Res Character Art
+  </text>
+</svg>
