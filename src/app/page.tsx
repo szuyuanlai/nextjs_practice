@@ -63,19 +63,21 @@ export default function HomePage() {
               </div>
             </div>
 
-            <div className="lg:pl-2">
-              <article className="overflow-hidden rounded-2xl border border-gray-200 bg-white shadow-sm">
+            <div className="w-full max-w-md mx-auto lg:mx-0 lg:ml-auto">
+              <article className="flex h-[320px] max-h-[320px] flex-col overflow-hidden rounded-2xl border border-gray-200 bg-white shadow-sm lg:h-[480px] lg:max-h-[480px]">
                 {heroImageSrc ? (
-                  <Image
-                    src={heroImageSrc}
-                    alt="角色立繪展示"
-                    width={900}
-                    height={1200}
-                    className="w-full h-auto min-h-[300px] aspect-[3/4] object-cover"
-                    priority
-                  />
+                  <div className="relative flex-1 min-h-0 w-full bg-slate-50">
+                    <Image
+                      src={heroImageSrc}
+                      alt="角色立繪展示"
+                      fill
+                      sizes="(min-width: 1024px) 28rem, (min-width: 640px) 24rem, 92vw"
+                      className="object-contain object-center p-2"
+                      priority
+                    />
+                  </div>
                 ) : (
-                  <div className="flex w-full min-h-[300px] aspect-[3/4] items-center justify-center bg-slate-100">
+                  <div className="flex flex-1 min-h-0 w-full items-center justify-center bg-slate-100">
                     <svg
                       width="220"
                       height="220"
@@ -91,7 +93,7 @@ export default function HomePage() {
                     </svg>
                   </div>
                 )}
-                <div className="px-4 py-3 text-sm font-medium text-gray-700">角色範例</div>
+                <div className="shrink-0 px-4 py-3 text-sm font-medium text-gray-700">角色範例</div>
               </article>
             </div>
           </div>
