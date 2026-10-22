@@ -170,14 +170,14 @@ function formatDateTime(iso: string) {
   });
 }
 
-function normalizeStatus(status: string | null) {
+function normalizeStatus(status: string | null | undefined) {
   const value = (status ?? "").trim().toLowerCase();
 
-  if (value === "completed") {
+  if (["completed", "finished", "delivered"].includes(value)) {
     return "completed";
   }
 
-  if (value === "in_progress" || value === "processing") {
+  if (["in_progress", "processing", "lineart", "approved"].includes(value)) {
     return "in_progress";
   }
 
@@ -328,7 +328,7 @@ export default function ArtistOrdersListView() {
         return;
       }
 
-      const firstError = charactersRes.error || merchRes.error || profilesRes.error || charactersBasicRes.error;
+      const firstError = charactersRes.error || merchRes.error;
 
       if (firstError) {
         setErrorMessage(`讀取委託訂單失敗：${firstError.message}`);
@@ -433,7 +433,7 @@ export default function ArtistOrdersListView() {
       supabase.from("characters").select("id,character_name"),
     ]);
 
-    const firstError = charactersRes.error || merchRes.error || profilesRes.error || charactersBasicRes.error;
+    const firstError = charactersRes.error || merchRes.error;
     if (firstError) {
       setErrorMessage(`讀取委託訂單失敗：${firstError.message}`);
       return;
@@ -626,7 +626,6 @@ export default function ArtistOrdersListView() {
         .from("characters")
         .update(characterUpdatePayload)
         .eq("id", characterId)
-        .eq("artist_id", user.id)
         .select("id,status,character_sheet_url,character_icon_url");
 
       if (characterUpdateError) {
@@ -635,10 +634,35 @@ export default function ArtistOrdersListView() {
         throw characterUpdateError;
       }
 
+      if (!characterUpdateRows || characterUpdateRows.length === 0) {
+        const rlsError = new Error(
+          "角色委託狀態更新失敗：資料庫未更新任何紀錄，請確認 Supabase characters 表的 UPDATE RLS 政策允許當前繪師更新資料。",
+        );
+        console.error("Characters 更新為空（可能遭 RLS 阻擋）：", { characterId, artistId: user.id });
+        throw rlsError;
+      }
+
+      const updatedCharacter = characterUpdateRows[0];
+
       console.log("[ArtistOrders] characters update success", {
         characterId,
         rows: characterUpdateRows,
       });
+
+      setCharacterOrders((current) =>
+        current.map((item) =>
+          item.id === characterId
+            ? {
+                ...item,
+                status: updatedCharacter?.status ?? "completed",
+                character_sheet_url: updatedCharacter?.character_sheet_url ?? characterSheetUrl,
+                character_icon_url: updatedCharacter?.character_icon_url ?? characterIconUrl,
+                reference_image_urls: nextImageUrls,
+                appearance_details: nextAppearance,
+              }
+            : item,
+        ),
+      );
 
       setCharacterSheetFilesByOrderId((current) => ({
         ...current,
@@ -726,12 +750,23 @@ export default function ArtistOrdersListView() {
         .from("orders")
         .update(updatePayload)
         .eq("id", order.id)
-        .eq("artist_id", user.id)
         .select("id,status,delivery_file_url");
 
       if (error) {
         throw error;
       }
+
+      if (!data || data.length === 0) {
+        console.error("[ArtistOrders] merch update affected 0 rows (check RLS UPDATE policy on public.orders)", {
+          orderId: order.id,
+          artistId: user.id,
+        });
+        throw new Error(
+          "訂單狀態更新失敗：資料庫未更新任何紀錄，請確認 Supabase orders 表的 UPDATE RLS 政策已授權繪師更新（請執行 supabase_migrations/fix_artist_orders_delivery_rls.sql）。",
+        );
+      }
+
+      const updatedOrder = data[0];
 
       console.log("[ArtistOrders] merch update success", {
         orderId: order.id,
@@ -739,12 +774,25 @@ export default function ArtistOrdersListView() {
         rows: data,
       });
 
+      setMerchOrders((current) =>
+        current.map((item) =>
+          item.id === order.id
+            ? {
+                ...item,
+                status: updatedOrder?.status ?? "completed",
+                delivery_file_url: updatedOrder?.delivery_file_url ?? serializedDeliveryUrl,
+              }
+            : item,
+        ),
+      );
+
       setToast({ kind: "success", message: "交付成功！訂單已更新為已完成。" });
       setDeliveryFilesByOrderId((current) => ({
         ...current,
         [order.id]: [],
       }));
       await refreshOrders();
+      router.refresh();
     } catch (error) {
       setToast({
         kind: "error",
@@ -1037,29 +1085,35 @@ export default function ArtistOrdersListView() {
                           <p className="mt-1 font-semibold text-slate-900">{formatDateTime(order.merchOrder.created_at)}</p>
                         </div>
 
-                        {(order.merchOrder.status ?? "").toLowerCase() === "completed" ? (() => {
+                        {normalizeStatus(order.merchOrder.status) === "completed" ? (() => {
                           const deliveryUrls = parseDeliveryUrls(order.merchOrder.delivery_file_url);
-
-                          if (!deliveryUrls.length) return null;
 
                           return (
                             <div className="space-y-3">
-                              <p className="text-xs uppercase tracking-[0.2em] text-slate-500">已交付圖片</p>
-                              <div className="grid grid-cols-2 gap-3">
-                                {deliveryUrls.slice(0, 4).map((url: string, index: number) => (
-                                  <a key={`${order.merchOrder.id}-${index}`} href={url} target="_blank" rel="noreferrer" className="overflow-hidden rounded-2xl border border-sky-200 bg-white">
-                                    <img src={url} alt={`交付成果 ${index + 1}`} className="h-24 w-full object-cover" />
-                                  </a>
-                                ))}
+                              <div className="inline-flex items-center gap-2 rounded-full border border-emerald-200 bg-emerald-50 px-3 py-1 text-xs font-semibold text-emerald-700">
+                                <CheckCircle2 className="h-3.5 w-3.5" />
+                                此周邊委託已完成
                               </div>
-                              <a
-                                href={deliveryUrls[0]}
-                                target="_blank"
-                                rel="noreferrer"
-                                className="inline-flex rounded-full border border-sky-200 bg-white px-3 py-2 text-xs font-semibold text-sky-700"
-                              >
-                                下載 / 預覽交付檔案
-                              </a>
+                              {deliveryUrls.length > 0 ? (
+                                <>
+                                  <p className="text-xs uppercase tracking-[0.2em] text-slate-500">已交付圖片</p>
+                                  <div className="grid grid-cols-2 gap-3">
+                                    {deliveryUrls.slice(0, 4).map((url: string, index: number) => (
+                                      <a key={`${order.merchOrder.id}-${index}`} href={url} target="_blank" rel="noreferrer" className="overflow-hidden rounded-2xl border border-sky-200 bg-white">
+                                        <img src={url} alt={`交付成果 ${index + 1}`} className="h-24 w-full object-cover" />
+                                      </a>
+                                    ))}
+                                  </div>
+                                  <a
+                                    href={deliveryUrls[0]}
+                                    target="_blank"
+                                    rel="noreferrer"
+                                    className="inline-flex rounded-full border border-sky-200 bg-white px-3 py-2 text-xs font-semibold text-sky-700"
+                                  >
+                                    下載 / 預覽交付檔案
+                                  </a>
+                                </>
+                              ) : null}
                             </div>
                           );
                         })() : (

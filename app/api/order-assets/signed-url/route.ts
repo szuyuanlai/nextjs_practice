@@ -80,7 +80,7 @@ export async function POST(req: Request) {
     const isArtist = user.id === order.artist_id;
 
     const { data: prof } = await supabase.from("profiles").select("role").eq("id", user.id).maybeSingle();
-    const isAdmin = (prof as any)?.role === "admin";
+    const isAdmin = String((prof as any)?.role ?? "").toLowerCase() === "admin";
 
     if (!isClient && !isArtist && !isAdmin) return NextResponse.json({ error: "Forbidden" }, { status: 403 });
 

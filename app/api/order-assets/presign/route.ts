@@ -36,7 +36,7 @@ export async function POST(req: Request) {
       const { data: order } = await supabase.from("orders").select("user_id,artist_id").eq("id", orderId).maybeSingle();
       if (!order) return NextResponse.json({ error: "Order not found" }, { status: 404 });
       const { data: prof } = await supabase.from("profiles").select("role").eq("id", user.id).maybeSingle();
-      const role = (prof as any)?.role;
+      const role = String((prof as any)?.role ?? "").toLowerCase();
       const isClient = user.id === (order as any).user_id;
       const isArtist = user.id === (order as any).artist_id;
       const isAdmin = role === "admin";

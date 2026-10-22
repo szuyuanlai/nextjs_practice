@@ -75,12 +75,17 @@ type UnifiedOrderCard =
       merchOrder: MerchandiseOrderRow;
     };
 
+function isCompletedStatus(status: string | null | undefined) {
+  const normalized = (status ?? "").trim().toLowerCase();
+  return ["completed", "finished", "delivered"].includes(normalized);
+}
+
 function statusToLabel(status: string | null | undefined) {
-  const normalized = (status ?? "").toLowerCase();
-  if (normalized === "completed") {
+  const normalized = (status ?? "").trim().toLowerCase();
+  if (isCompletedStatus(normalized)) {
     return { label: "已完成", color: "bg-emerald-100 text-emerald-700 border-emerald-200" };
   }
-  if (normalized === "in_progress") {
+  if (normalized === "in_progress" || normalized === "processing") {
     return { label: "進行中", color: "bg-sky-100 text-sky-700 border-sky-200" };
   }
   if (normalized === "approved") {
@@ -326,7 +331,7 @@ export default function OrdersPage() {
 
   const totalOrders = cards.length;
   const completedOrders = useMemo(
-    () => cards.filter((card) => (card.status ?? "").toLowerCase() === "completed").length,
+    () => cards.filter((card) => isCompletedStatus(card.status)).length,
     [cards],
   );
 
@@ -497,7 +502,7 @@ export default function OrdersPage() {
                           <p className="text-xs uppercase tracking-[0.2em] text-slate-500">建立時間</p>
                           <p className="mt-2 font-semibold text-slate-800">{formatDateTime(card.createdAt)}</p>
                         </div>
-                        {(card.status ?? "").toLowerCase() === "completed" ? (() => {
+                        {isCompletedStatus(card.status) ? (() => {
                           const deliveryUrls = parseDeliveryUrls(card.merchOrder.delivery_file_url);
                           if (!deliveryUrls.length) return null;
 

@@ -38,11 +38,12 @@ type Props = {
 
 const DELIVERY_BUCKETS = ["completed-assets", "character-references"] as const;
 
-function normalizeStatus(status: string | null) {
-  if (status === "completed") {
+function normalizeStatus(status: string | null | undefined) {
+  const value = (status ?? "").trim().toLowerCase();
+  if (["completed", "finished", "delivered"].includes(value)) {
     return "completed";
   }
-  if (status === "in_progress") {
+  if (["in_progress", "processing", "lineart", "approved"].includes(value)) {
     return "in_progress";
   }
   return "draft";
@@ -281,7 +282,7 @@ export default function ArtistOrderDetailView({ orderId }: Props) {
         completed_by_artist_id: artistUserId,
       };
 
-      const { error } = await supabase
+      const { data: updatedRows, error } = await supabase
         .from("characters")
         .update({
           status: "completed",
@@ -291,10 +292,14 @@ export default function ArtistOrderDetailView({ orderId }: Props) {
           appearance_details: nextAppearance,
         })
         .eq("id", character.id)
-        .eq("artist_id", artistUserId);
+        .select("id,status,character_sheet_url,character_icon_url");
 
       if (error) {
         throw error;
+      }
+
+      if (!updatedRows || updatedRows.length === 0) {
+        throw new Error("交稿更新失敗：資料庫未更新任何紀錄，請確認 Supabase characters 表的 UPDATE RLS 權限政策。");
       }
 
       setCharacter({

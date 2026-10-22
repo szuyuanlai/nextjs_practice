@@ -5,16 +5,27 @@ BEGIN;
 
 ALTER TABLE public.orders
   ADD COLUMN IF NOT EXISTS user_id uuid REFERENCES public.profiles(id) ON DELETE SET NULL,
+  ADD COLUMN IF NOT EXISTS artist_id uuid REFERENCES public.profiles(id) ON DELETE SET NULL,
   ADD COLUMN IF NOT EXISTS character_id uuid REFERENCES public.characters(id) ON DELETE SET NULL,
   ADD COLUMN IF NOT EXISTS merch_type text,
   ADD COLUMN IF NOT EXISTS requirements jsonb DEFAULT '{}'::jsonb,
   ADD COLUMN IF NOT EXISTS shipping_address jsonb DEFAULT '{}'::jsonb,
   ADD COLUMN IF NOT EXISTS delivery_file_url text;
 
--- Backfill user_id from older client_id-based records.
-UPDATE public.orders
-SET user_id = client_id
-WHERE user_id IS NULL AND client_id IS NOT NULL;
+-- Backfill user_id from older client_id-based records if client_id still exists.
+DO $$
+BEGIN
+  IF EXISTS (
+    SELECT 1
+    FROM information_schema.columns
+    WHERE table_schema = 'public'
+      AND table_name = 'orders'
+      AND column_name = 'client_id'
+  ) THEN
+    EXECUTE 'UPDATE public.orders SET user_id = client_id WHERE user_id IS NULL AND client_id IS NOT NULL';
+  END IF;
+END
+$$;
 
 ALTER TABLE public.orders
   ALTER COLUMN requirements SET DEFAULT '{}'::jsonb,
@@ -51,28 +62,27 @@ DROP POLICY IF EXISTS "delete_orders_admin_only" ON public.orders;
 CREATE POLICY "select_orders_access" ON public.orders
   FOR SELECT USING (
     (auth.uid() = user_id)
-    OR (auth.uid() = client_id)
     OR (auth.uid() = artist_id)
+    OR (EXISTS (SELECT 1 FROM public.characters c WHERE c.id = orders.character_id AND c.artist_id = auth.uid()))
     OR (EXISTS (SELECT 1 FROM public.profiles p WHERE p.id = auth.uid() AND lower(coalesce(p.role, '')) = 'admin'))
   );
 
 CREATE POLICY "insert_orders_clients" ON public.orders
   FOR INSERT WITH CHECK (
     (auth.uid() = user_id)
-    OR (auth.uid() = client_id)
     OR (EXISTS (SELECT 1 FROM public.profiles p WHERE p.id = auth.uid() AND lower(coalesce(p.role, '')) = 'admin'))
   );
 
 CREATE POLICY "update_orders_access" ON public.orders
   FOR UPDATE USING (
     (auth.uid() = user_id)
-    OR (auth.uid() = client_id)
     OR (auth.uid() = artist_id)
+    OR (EXISTS (SELECT 1 FROM public.characters c WHERE c.id = orders.character_id AND c.artist_id = auth.uid()))
     OR (EXISTS (SELECT 1 FROM public.profiles p WHERE p.id = auth.uid() AND lower(coalesce(p.role, '')) = 'admin'))
   ) WITH CHECK (
     (auth.uid() = user_id)
-    OR (auth.uid() = client_id)
     OR (auth.uid() = artist_id)
+    OR (EXISTS (SELECT 1 FROM public.characters c WHERE c.id = orders.character_id AND c.artist_id = auth.uid()))
     OR (EXISTS (SELECT 1 FROM public.profiles p WHERE p.id = auth.uid() AND lower(coalesce(p.role, '')) = 'admin'))
   );
 

@@ -124,15 +124,19 @@ CREATE INDEX IF NOT EXISTS characters_user_id_idx ON public.characters(user_id);
 -- -----------------------------------------------------------------------------
 ALTER TABLE public.orders
   ADD COLUMN IF NOT EXISTS user_id uuid REFERENCES public.profiles(id) ON DELETE SET NULL,
+  ADD COLUMN IF NOT EXISTS artist_id uuid REFERENCES public.profiles(id) ON DELETE SET NULL,
   ADD COLUMN IF NOT EXISTS character_id uuid REFERENCES public.characters(id) ON DELETE SET NULL,
   ADD COLUMN IF NOT EXISTS merch_type text,
   ADD COLUMN IF NOT EXISTS requirements jsonb DEFAULT '{}'::jsonb,
   ADD COLUMN IF NOT EXISTS shipping_address jsonb DEFAULT '{}'::jsonb,
   ADD COLUMN IF NOT EXISTS delivery_file_url text;
 
-UPDATE public.orders
-SET user_id = COALESCE(user_id, client_id)
-WHERE user_id IS NULL AND client_id IS NOT NULL;
+DO $$
+BEGIN
+  IF EXISTS (SELECT 1 FROM information_schema.columns WHERE table_schema = 'public' AND table_name = 'orders' AND column_name = 'client_id') THEN
+    EXECUTE 'UPDATE public.orders SET user_id = COALESCE(user_id, client_id) WHERE user_id IS NULL AND client_id IS NOT NULL';
+  END IF;
+END $$;
 
 UPDATE public.orders
 SET merch_type = COALESCE(merch_type, tier)
@@ -170,10 +174,6 @@ BEGIN
     ALTER TABLE public.orders DROP COLUMN IF EXISTS client_id;
   END IF;
 
-  IF EXISTS (SELECT 1 FROM information_schema.columns WHERE table_schema = 'public' AND table_name = 'orders' AND column_name = 'artist_id') THEN
-    ALTER TABLE public.orders DROP COLUMN IF EXISTS artist_id;
-  END IF;
-
   IF EXISTS (SELECT 1 FROM information_schema.columns WHERE table_schema = 'public' AND table_name = 'orders' AND column_name = 'description') THEN
     ALTER TABLE public.orders DROP COLUMN IF EXISTS description;
   END IF;
@@ -190,6 +190,44 @@ BEGIN
     ALTER TABLE public.orders DROP COLUMN IF EXISTS tier;
   END IF;
 END $$;
+
+-- Ensure RLS policies on orders allow assigned artists to view and update delivery status.
+DROP POLICY IF EXISTS "select_orders_access" ON public.orders;
+DROP POLICY IF EXISTS "insert_orders_clients" ON public.orders;
+DROP POLICY IF EXISTS "update_orders_access" ON public.orders;
+DROP POLICY IF EXISTS "delete_orders_admin_only" ON public.orders;
+
+CREATE POLICY "select_orders_access" ON public.orders
+  FOR SELECT USING (
+    (auth.uid() = user_id)
+    OR (auth.uid() = artist_id)
+    OR (EXISTS (SELECT 1 FROM public.characters c WHERE c.id = orders.character_id AND c.artist_id = auth.uid()))
+    OR (EXISTS (SELECT 1 FROM public.profiles p WHERE p.id = auth.uid() AND lower(coalesce(p.role, '')) = 'admin'))
+  );
+
+CREATE POLICY "insert_orders_clients" ON public.orders
+  FOR INSERT WITH CHECK (
+    (auth.uid() = user_id)
+    OR (EXISTS (SELECT 1 FROM public.profiles p WHERE p.id = auth.uid() AND lower(coalesce(p.role, '')) = 'admin'))
+  );
+
+CREATE POLICY "update_orders_access" ON public.orders
+  FOR UPDATE USING (
+    (auth.uid() = user_id)
+    OR (auth.uid() = artist_id)
+    OR (EXISTS (SELECT 1 FROM public.characters c WHERE c.id = orders.character_id AND c.artist_id = auth.uid()))
+    OR (EXISTS (SELECT 1 FROM public.profiles p WHERE p.id = auth.uid() AND lower(coalesce(p.role, '')) = 'admin'))
+  ) WITH CHECK (
+    (auth.uid() = user_id)
+    OR (auth.uid() = artist_id)
+    OR (EXISTS (SELECT 1 FROM public.characters c WHERE c.id = orders.character_id AND c.artist_id = auth.uid()))
+    OR (EXISTS (SELECT 1 FROM public.profiles p WHERE p.id = auth.uid() AND lower(coalesce(p.role, '')) = 'admin'))
+  );
+
+CREATE POLICY "delete_orders_admin_only" ON public.orders
+  FOR DELETE USING (
+    EXISTS (SELECT 1 FROM public.profiles p WHERE p.id = auth.uid() AND lower(coalesce(p.role, '')) = 'admin')
+  );
 
 CREATE INDEX IF NOT EXISTS orders_user_id_idx ON public.orders(user_id);
 CREATE INDEX IF NOT EXISTS orders_character_id_idx ON public.orders(character_id);
