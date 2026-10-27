@@ -1,6 +1,7 @@
 "use client";
 
 import Link from "next/link";
+import { useRouter } from "next/navigation";
 import { useEffect, useRef, useState, type MouseEvent as ReactMouseEvent } from "react";
 import type { User } from "@supabase/supabase-js";
 import {
@@ -16,7 +17,7 @@ import {
 } from "lucide-react";
 import { OrderHistoryModal } from "@/src/components/OrderHistoryModal";
 import { supabase } from "@/src/lib/supabase/client";
-import { normalizeXAvatarUrl } from "@/src/lib/supabase/profile-sync";
+import { normalizeXAvatarUrl, syncProfileFromAuthUser } from "@/src/lib/supabase/profile-sync";
 
 type ProfileRoleRow = {
   role?: string | null;
@@ -32,6 +33,7 @@ function normalizeRole(value?: string | null) {
 }
 
 export function Navbar() {
+  const router = useRouter();
   const menuRef = useRef<HTMLDivElement | null>(null);
   const [user, setUser] = useState<User | null>(null);
   const [role, setRole] = useState<string | null>(null);
@@ -47,12 +49,19 @@ export function Navbar() {
       return;
     }
 
+    let isMounted = true;
+
     const syncUser = async () => {
       try {
+        await client.auth.initialize();
         const {
           data: { session },
           error,
         } = await client.auth.getSession();
+
+        if (!isMounted) {
+          return;
+        }
 
         if (error) {
           const msg = error.message ?? "";
@@ -69,33 +78,15 @@ export function Navbar() {
         }
 
         const nextUser = session?.user ?? null;
-
         setUser(nextUser);
-        if (nextUser) {
-          console.log("Checking profile for user:", nextUser.id);
-
-          const { data: existingProfile, error: profileError } = await client
-            .from("profiles")
-            .select("role")
-            .eq("id", nextUser.id)
-            .single();
-
-          console.log("Existing profile result:", existingProfile, "Error:", profileError);
-
-          if (profileError) {
-            if (profileError.code !== "PGRST116") {
-              console.warn("Failed to read profile role during session load:", profileError.message);
-            }
-
-            setRole(null);
-          } else {
-            setRole((existingProfile?.role as string | null | undefined) ?? null);
-          }
-        } else {
+        if (!nextUser) {
           setRole(null);
         }
         setIsLoading(false);
       } catch {
+        if (!isMounted) {
+          return;
+        }
         setUser(null);
         setRole(null);
         setIsLoading(false);
@@ -107,6 +98,10 @@ export function Navbar() {
     const {
       data: { subscription },
     } = client.auth.onAuthStateChange((event, session) => {
+      if (!isMounted) {
+        return;
+      }
+
       const nextUser = session?.user ?? null;
       setUser(nextUser);
       setIsLoading(false);
@@ -114,32 +109,6 @@ export function Navbar() {
       if (event === "SIGNED_OUT" || !nextUser) {
         setRole(null);
         setIsMobileMenuOpen(false);
-        return;
-      }
-
-      if (event === "SIGNED_IN" && nextUser) {
-        console.log("Checking profile for user:", nextUser.id);
-
-        void (async () => {
-          const { data: existingProfile, error: profileError } = await client
-            .from("profiles")
-            .select("role")
-            .eq("id", nextUser.id)
-            .single();
-
-          console.log("Existing profile result:", existingProfile, "Error:", profileError);
-
-          if (profileError) {
-            if (profileError.code !== "PGRST116") {
-              console.warn("Failed to read profile role during sign-in:", profileError.message);
-            }
-
-            setRole(null);
-            return;
-          }
-
-          setRole((existingProfile?.role as string | null | undefined) ?? null);
-        })();
       }
     });
 
@@ -152,6 +121,7 @@ export function Navbar() {
     document.addEventListener("mousedown", handlePointerDown);
 
     return () => {
+      isMounted = false;
       subscription.unsubscribe();
       document.removeEventListener("mousedown", handlePointerDown);
     };
@@ -162,6 +132,8 @@ export function Navbar() {
       return;
     }
 
+    let isCancelled = false;
+
     const loadRole = async () => {
       const client = supabase;
       if (!client) {
@@ -169,21 +141,41 @@ export function Navbar() {
       }
 
       try {
-        const { data: prof } = await client
+        const { data: prof, error: profileError } = await client
           .from("profiles")
           .select("role")
           .eq("id", user.id)
           .maybeSingle<ProfileRoleRow>();
 
-        const profileRole = (prof?.role as string | null | undefined) ?? user.user_metadata?.role ?? "CLIENT";
+        if (profileError) {
+          console.warn("Failed to read profile role:", profileError.message);
+        } else if (!prof) {
+          await syncProfileFromAuthUser(client, user);
+        }
+
+        if (isCancelled) {
+          return;
+        }
+
+        const profileRole =
+          (prof?.role as string | null | undefined) ??
+          (user.user_metadata?.role as string | null | undefined) ??
+          "CLIENT";
         setRole(normalizeRole(profileRole));
       } catch (e) {
+        if (isCancelled) {
+          return;
+        }
         console.warn("failed to fetch profile role", e);
-        setRole(normalizeRole(user.user_metadata?.role ?? "CLIENT"));
+        setRole(normalizeRole(user.user_metadata?.role as string | null | undefined));
       }
     };
 
     void loadRole();
+
+    return () => {
+      isCancelled = true;
+    };
   }, [user]);
 
   const handleLogout = async () => {
@@ -201,13 +193,14 @@ export function Navbar() {
     }
 
     setUser(null);
+    setRole(null);
     setIsMenuOpen(false);
     setIsMobileMenuOpen(false);
   };
 
   const handleOrderQuery = () => {
     if (!user) {
-      window.location.href = "/login?redirectTo=%2Forders";
+      router.push("/login?redirectTo=%2Forders");
       return;
     }
 
@@ -228,7 +221,8 @@ export function Navbar() {
 
     if (!user) {
       event.preventDefault();
-      window.location.href = `/login?redirectTo=${encodeURIComponent(href)}`;
+      setIsMobileMenuOpen(false);
+      router.push(`/login?redirectTo=${encodeURIComponent(href)}`);
       return;
     }
 

@@ -4,7 +4,7 @@ import React, { useEffect, useState } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { ArrowLeft, Loader2, LogIn, ShieldAlert } from "lucide-react";
-import { getSupabaseClient } from "@/src/lib/supabase/client";
+import { getSupabaseClient, startOAuthSignIn } from "@/src/lib/supabase/client";
 
 type AdminProfile = {
   id?: string;
@@ -88,18 +88,7 @@ export default function AdminDashboardPage() {
   }, [router]);
 
   const handleLogin = async () => {
-    const client = getSupabaseClient();
-    if (!client) {
-      setError("Supabase 尚未設定，請先在 .env.local 中加入 NEXT_PUBLIC_SUPABASE_URL 與 NEXT_PUBLIC_SUPABASE_ANON_KEY。");
-      return;
-    }
-
-    const redirectTo = typeof window !== "undefined" ? `${window.location.origin}/admin/dashboard` : undefined;
-
-    const { error: signInError } = await client.auth.signInWithOAuth({
-      provider: "google",
-      options: { redirectTo },
-    });
+    const { error: signInError } = await startOAuthSignIn("google", "/admin/dashboard");
 
     if (signInError) {
       setError(signInError.message);

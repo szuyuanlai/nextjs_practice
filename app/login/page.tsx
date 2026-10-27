@@ -1,39 +1,78 @@
 "use client";
 
 import Link from "next/link";
-import { Suspense, useState } from "react";
-import { useSearchParams } from "next/navigation";
+import { Suspense, useEffect, useState } from "react";
+import { useRouter, useSearchParams } from "next/navigation";
 import { ArrowLeft, Loader2 } from "lucide-react";
-import { getSupabaseClient } from "@/src/lib/supabase/client";
+import { getSupabaseClient, startOAuthSignIn } from "@/src/lib/supabase/client";
 
 type OAuthProvider = "google" | "x";
 
 function LoginPageContent() {
+  const router = useRouter();
   const searchParams = useSearchParams();
   const [loadingProvider, setLoadingProvider] = useState<OAuthProvider | null>(null);
-  const [errorMessage, setErrorMessage] = useState<string | null>(null);
+  const [errorMessage, setErrorMessage] = useState<string | null>(
+    searchParams.get("error"),
+  );
 
   const rawRedirectTo = searchParams.get("redirectTo") ?? "/";
-  const safeRedirectTo = rawRedirectTo.startsWith("/") ? rawRedirectTo : "/";
+  const safeRedirectTo =
+    rawRedirectTo.startsWith("/") && !rawRedirectTo.startsWith("//")
+      ? rawRedirectTo
+      : "/";
 
-  const handleOAuthLogin = async (provider: OAuthProvider) => {
+  useEffect(() => {
+    const queryError = searchParams.get("error");
+    if (queryError) {
+      setErrorMessage(queryError);
+    }
+  }, [searchParams]);
+
+  useEffect(() => {
     const supabase = getSupabaseClient();
     if (!supabase) {
-      setErrorMessage("Supabase 尚未設定，請先填入 NEXT_PUBLIC_SUPABASE_URL 與 NEXT_PUBLIC_SUPABASE_ANON_KEY。");
       return;
     }
 
+    let isCancelled = false;
+
+    const checkExistingSession = async () => {
+      try {
+        await supabase.auth.initialize();
+        const {
+          data: { session },
+        } = await supabase.auth.getSession();
+
+        if (!session) {
+          return;
+        }
+
+        const {
+          data: { user },
+          error,
+        } = await supabase.auth.getUser();
+
+        if (!isCancelled && !error && user) {
+          router.replace(safeRedirectTo);
+        }
+      } catch {
+        // Ignore session check errors on login page
+      }
+    };
+
+    void checkExistingSession();
+
+    return () => {
+      isCancelled = true;
+    };
+  }, [router, safeRedirectTo]);
+
+  const handleOAuthLogin = async (provider: OAuthProvider) => {
     setErrorMessage(null);
     setLoadingProvider(provider);
 
-    const redirectTo = `${window.location.origin}/auth/callback?next=${encodeURIComponent(safeRedirectTo)}`;
-
-    const { error } = await supabase.auth.signInWithOAuth({
-      provider,
-      options: {
-        redirectTo,
-      },
-    });
+    const { error } = await startOAuthSignIn(provider, safeRedirectTo);
 
     if (error) {
       console.error("OAuth login failed:", error.message);
