@@ -5,6 +5,7 @@ import { useRouter } from "next/navigation";
 import { useEffect, useMemo, useState } from "react";
 import { AlertTriangle, ArrowLeft, Loader2, Sparkles } from "lucide-react";
 import { getSupabaseClient } from "@/src/lib/supabase/client";
+import CompletedMerchSection from "@/src/components/CompletedMerchSection";
 
 type CharacterRecord = {
   id: string;
@@ -376,6 +377,8 @@ export default function CharacterDetailView({ characterId }: Props) {
             <p className="mt-3 text-sm text-slate-600">未上傳參考圖片</p>
           )}
         </section>
+
+        <CompletedMerchSection characterId={character.id} />
       </div>
     </main>
   );
